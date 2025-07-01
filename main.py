@@ -26,15 +26,7 @@ class MyRL():
         self.Smallgroup = []
         self.bili= len(self.Smallgroup) / len(self.Biggroup) if len(self.Biggroup) > 0 else 1
 
-    def epsilon_greedy_action(state_num, epsilon):
-        """ε-贪婪策略选择动作"""
-        if random.random() < epsilon:
-            return random.randint(0, len(self.env.action_space) - 1)
-        else:
-            state_tensor = state_to_tensor(state_num).unsqueeze(0)
-            with torch.no_grad():
-                q_values = q_network(state_tensor)
-            return q_values.argmax().item()
+
     
     def Reward(self, state, action, label):
         """奖励函数"""
@@ -70,12 +62,26 @@ class MyRL():
         sync_freq = 500#设置更新频率
         j=0
 
+        #初始化 Q网和target网
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        q_network = DQNNetwork(input_size, hidden_size, output_size).to(device)
-        target_network = DQNNetwork(input_size, hidden_size, output_size).to(device)
+        # 初始化双网络
+        q_net = QNetwork(state_dim, action_dim) #在线网络，实时更新
+        target_net = QNetwork(state_dim, action_dim) #目标网络，用来软更新
+        target_net.load_state_dict(self.q_net.state_dict())  # 同步参数
+
 
         optimizer = optim.Adam(q_network.parameters(), lr=learning_rate)
         criterion = nn.MSELoss()
+
+        def epsilon_greedy_action(state_num, epsilon):
+            """ε-贪婪策略选择动作"""
+            if random.random() < epsilon:
+                return random.randint(0, len(self.env.action_space) - 1)
+            else:
+                state_tensor = state_to_tensor(state_num).unsqueeze(0)
+                with torch.no_grad():
+                    q_values = q_network(state_tensor)
+                return q_values.argmax().item()
 
         def replay_experience():
             """从经验回放缓冲区采样并训练网络"""
@@ -89,6 +95,28 @@ class MyRL():
             rewards = torch.tensor([r for (s1, a, r, s2, d) in batch])
             next_states = torch.cat([s2 for (s1, a, r, s2, d) in batch])
             dones = torch.tensor([d for (s1, a, r, s2, d) in batch])
+            
+            # 计算当前Q值
+            current_q = self.q_net(states).gather(1, actions)
+            
+            # 计算目标Q值
+            with torch.no_grad():
+                next_q = self.target_net(next_states).max(1, keepdim=True)[0]
+                target_q = rewards + self.gamma * next_q * (~dones)
+            
+            # 计算损失并更新
+            loss = nn.MSELoss()(current_q, target_q)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            # 更新目标网络 (软更新)
+            for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
+                target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
+            
+            # 衰减探索率
+            if self.epsilon > self.epsilon_min:
+                self.epsilon *= self.epsilon_decay
         
 
         for i in range(epochs):
