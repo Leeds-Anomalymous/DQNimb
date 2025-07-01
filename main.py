@@ -48,7 +48,7 @@ class MyRL():
 
         return (reward, iterminal)
     
-    def DQN(self,Data):
+    def DQN(self,size):
         """深度Q网络实现"""
         # DQN超参数
         epochs = 5000
@@ -67,8 +67,8 @@ class MyRL():
         #初始化 Q网和target网
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # 初始化双网络
-        q_net = Q_Net_image(state_dim, action_dim) #在线网络，实时更新
-        target_net = Q_Net_image(state_dim, action_dim) #目标网络，用来软更新
+        q_net = Q_Net_image(size) #在线网络，实时更新
+        target_net = Q_Net_image(size) #目标网络，用来软更新
         target_net.load_state_dict(self.q_net.state_dict())  # 同步参数
 
 
@@ -143,7 +143,6 @@ class MyRL():
                 # 存储经验到回放缓冲区
                 replay.append((state_tensor, action, reward, next_state_tensor, terminal))
                 
-                episode_reward += reward
                 
                 # 经验回放训练
                 replay_experience()
@@ -153,8 +152,6 @@ class MyRL():
                     break
             
             # 打印训练进度
-            if epoch % 100 == 0:
-                print(f"Epoch {epoch}, Episode Reward: {episode_reward:.2f}, Epsilon: {epsilon:.3f}")
         
                 
 
