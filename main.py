@@ -184,6 +184,24 @@ class MyRL():
         dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=batch_size)
         train_loader, test_loader = dataset.get_dataloaders()
         return train_loader, test_loader
+    
+def main():
+    # 创建不平衡数据集
+    dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
+        
+    # 获取整个训练集 (用于DQN序列训练)
+    train_data, train_labels = dataset.train_data.tensors
+    train_data = train_data.unsqueeze(1).float()  # 添加通道维度 (1x28x28)
+    
+    # 初始化DQN分类器
+    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
+    classifier = MyRL(input_shape, rho=0.01)
+    
+    # 开始训练
+    classifier.train(train_data, train_labels)
+
+if __name__ == "__main__":
+    main()
         
                 
 
