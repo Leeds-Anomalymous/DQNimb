@@ -63,16 +63,12 @@ class MyRL():
         tau = 0.005 
         replay = deque(maxlen=mem_size)
 
-        max_moves =50
-        h = 0
-        sync_freq = 500#设置更新频率
-        j=0
 
         #初始化 Q网和target网
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # 初始化双网络
-        q_net = QNetwork(state_dim, action_dim) #在线网络，实时更新
-        target_net = QNetwork(state_dim, action_dim) #目标网络，用来软更新
+        q_net = Q_Net_image(state_dim, action_dim) #在线网络，实时更新
+        target_net = Q_Net_image(state_dim, action_dim) #目标网络，用来软更新
         target_net.load_state_dict(self.q_net.state_dict())  # 同步参数
 
 
@@ -126,8 +122,41 @@ class MyRL():
         
 
         for i in range(epochs):
-            state = self.Data[0][0]
-            for t in range(len(Data)):
+            shuffled_indices = np.random.permutation(len(Data))
+            states, labels = data[shuffled_indices, :-1], data[shuffled_indices, -1]
+            
+            s = states[0]  # 初始化状态 
+            
+            for t in range(len(states) - 1):
+            # 当前状态转换为tensor
+                state_tensor = torch.FloatTensor(states[t]).unsqueeze(0).to(device)
+                
+                # ε-贪婪选择动作
+                action = epsilon_greedy_action(state_tensor, epsilon)
+                
+                # 获取奖励和终止标志
+                reward, terminal = self.Reward(states[t], action, labels[t])
+                
+                # 下一个状态
+                next_state_tensor = torch.FloatTensor(states[t + 1]).unsqueeze(0).to(device)
+                
+                # 存储经验到回放缓冲区
+                replay.append((state_tensor, action, reward, next_state_tensor, terminal))
+                
+                episode_reward += reward
+                
+                # 经验回放训练
+                replay_experience()
+                
+                # 如果终止则跳出
+                if terminal:
+                    break
+            
+            # 打印训练进度
+            if epoch % 100 == 0:
+                print(f"Epoch {epoch}, Episode Reward: {episode_reward:.2f}, Epsilon: {epsilon:.3f}")
+        
+                
 
             
 

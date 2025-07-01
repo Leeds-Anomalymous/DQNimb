@@ -130,7 +130,7 @@ class ImbalancedDataset:
 from dataset import ImbalancedDataset
 
 # 初始化 MNIST 数据集（rho=0.01, 正类=标签2）
-dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, positive_class=2, batch_size=64)
+dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
 
 # 获取 DataLoader
 train_loader, test_loader = dataset.get_dataloaders()
