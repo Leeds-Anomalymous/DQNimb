@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
+from tqdm import tqdm
 from datasets import ImbalancedDataset
 from Model import Q_Net_image
 
@@ -119,8 +120,13 @@ class MyRL():
         num_samples = len(train_data)
         self.step_count = 0
         
+        # 创建总体训练进度条
+        total_pbar = tqdm(total=self.t_max, desc="Training Progress", unit="step")
+        
         # 训练直到达到最大步数
+        epoch = 0
         while self.step_count < self.t_max:
+            epoch += 1
             # 打乱训练数据 
             indices = torch.randperm(num_samples)
             shuffled_data = train_data[indices]
@@ -129,8 +135,14 @@ class MyRL():
             # 初始化状态 - 不需要添加批次维度，因为数据已经是4D的
             state = shuffled_data[0:1]  # 取第一个样本，保持4D形状 [1, C, H, W]
             
+            # 创建当前epoch的进度条
+            epoch_pbar = tqdm(range(num_samples - 1), 
+                            desc=f"Epoch {epoch}", 
+                            leave=False, 
+                            unit="sample")
+            
             # 遍历数据集
-            for t in range(num_samples - 1):  # 注意: 最后一个样本没有next_state
+            for t in epoch_pbar:  # 注意: 最后一个样本没有next_state
                 # 选择动作 (ε-greedy策略)
                 if random.random() < self.epsilon:
                     action = random.randint(0, 1)  # 随机探索
@@ -158,6 +170,21 @@ class MyRL():
                 self.replay_experience()
                 self.step_count += 1
                 
+                # 更新进度条信息
+                epoch_pbar.set_postfix({
+                    'Step': self.step_count,
+                    'Epsilon': f'{self.epsilon:.4f}',
+                    'Reward': f'{reward:.2f}',
+                    'Action': action,
+                    'Terminal': terminal
+                })
+                total_pbar.update(1)
+                total_pbar.set_postfix({
+                    'Epoch': epoch,
+                    'Epsilon': f'{self.epsilon:.4f}',
+                    'Memory': len(self.replay_memory)
+                })
+                
                 # 检查终止条件 
                 if terminal:
                     break
@@ -169,10 +196,13 @@ class MyRL():
                 if self.step_count >= self.t_max:
                     break
             
-            # 打印训练进度
-            if self.step_count % 1000 == 0:
-                print(f"Step: {self.step_count}/{self.t_max}, Epsilon: {self.epsilon:.4f}")
+            epoch_pbar.close()
+            
+            # 检查是否达到最大步数
+            if self.step_count >= self.t_max:
+                break
         
+        total_pbar.close()
         print("Training completed!")
     
 
@@ -205,13 +235,13 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
-                
 
-            
 
-                 
-        
 
-        
+
+
+
+
+
+
 
