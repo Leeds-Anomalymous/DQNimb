@@ -155,7 +155,7 @@ class MyRL():
                 ))
                 
                 # 训练更新 
-                self.train_step()
+                self.replay_experience()
                 self.step_count += 1
                 
                 # 检查终止条件 
