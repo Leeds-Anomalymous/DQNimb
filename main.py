@@ -55,6 +55,12 @@ class MyRL():
         losses = []
         mem_size = 1000
         batch_size = 200
+        gamma = 0.99    # 折扣因子
+        epsilon = 1.0   # 初始探索率
+        epsilon_min = 0.01
+        epsilon_decay = 0.995
+        batch_size = 64
+        tau = 0.005 
         replay = deque(maxlen=mem_size)
 
         max_moves =50
@@ -70,7 +76,7 @@ class MyRL():
         target_net.load_state_dict(self.q_net.state_dict())  # 同步参数
 
 
-        optimizer = optim.Adam(q_network.parameters(), lr=learning_rate)
+        optimizer = optim.Adam(q_net.parameters(), lr=0.0001)
         criterion = nn.MSELoss()
 
         def epsilon_greedy_action(state_num, epsilon):
@@ -78,9 +84,9 @@ class MyRL():
             if random.random() < epsilon:
                 return random.randint(0, len(self.env.action_space) - 1)
             else:
-                state_tensor = state_to_tensor(state_num).unsqueeze(0)
+                state_tensor = torch.FloatTensor(state_num).unsqueeze(0)
                 with torch.no_grad():
-                    q_values = q_network(state_tensor)
+                    q_values = q_net(state_tensor)
                 return q_values.argmax().item()
 
         def replay_experience():
@@ -97,26 +103,26 @@ class MyRL():
             dones = torch.tensor([d for (s1, a, r, s2, d) in batch])
             
             # 计算当前Q值
-            current_q = self.q_net(states).gather(1, actions)
+            current_q = q_net(states).gather(1, actions)
             
             # 计算目标Q值
             with torch.no_grad():
-                next_q = self.target_net(next_states).max(1, keepdim=True)[0]
-                target_q = rewards + self.gamma * next_q * (~dones)
+                next_q = target_net(next_states).max(1, keepdim=True)[0]
+                target_q = rewards + gamma * next_q * (~dones)
             
             # 计算损失并更新
             loss = nn.MSELoss()(current_q, target_q)
-            self.optimizer.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
-            self.optimizer.step()
+            optimizer.step()
             
             # 更新目标网络 (软更新)
-            for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
+            for target_param, param in zip(target_net.parameters(), q_net.parameters()):
+                target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
             
             # 衰减探索率
-            if self.epsilon > self.epsilon_min:
-                self.epsilon *= self.epsilon_decay
+            if epsilon > epsilon_min:
+                epsilon *= epsilon_decay
         
 
         for i in range(epochs):
