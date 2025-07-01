@@ -23,8 +23,8 @@ class MyRL():
         self.batch_size = 64
                 
         # 初始化双网络
-        self.q_net = Q_Net_image(input_shape) #在线网络，实时更新
-        self.target_net = Q_Net_image(input_shape) #目标网络，用来软更新
+        self.q_net = Q_Net_image(input_shape, output_dim=2) #在线网络，实时更新 - 二分类输出
+        self.target_net = Q_Net_image(input_shape, output_dim=2) #目标网络，用来软更新 - 二分类输出
         self.target_net.load_state_dict(self.q_net.state_dict())  # 同步参数
 
         # 优化器
@@ -78,6 +78,7 @@ class MyRL():
         batch = random.sample(self.replay_memory, self.batch_size)
         states, actions, rewards, next_states, terminals = zip(*batch)
 
+        # 将3D张量列表转换为4D批次张量 [batch_size, C, H, W]
         states = torch.stack(states).to(self.device)
         actions = torch.tensor(actions, dtype=torch.int64, device=self.device).unsqueeze(1)
         rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device).unsqueeze(1)
@@ -126,8 +127,8 @@ class MyRL():
             shuffled_data = train_data[indices]
             shuffled_labels = train_labels[indices]
             
-            # 初始化状态 
-            state = shuffled_data[0].unsqueeze(0)  # 添加批次维度
+            # 初始化状态 - 不需要添加批次维度，因为数据已经是4D的
+            state = shuffled_data[0:1]  # 取第一个样本，保持4D形状 [1, C, H, W]
             
             # 遍历数据集
             for t in range(num_samples - 1):  # 注意: 最后一个样本没有next_state
@@ -142,15 +143,15 @@ class MyRL():
                 # 获取奖励和终止标志 
                 reward, terminal = self.compute_reward(action, shuffled_labels[t].item())
                 
-                # 下一个状态 
-                next_state = shuffled_data[t+1].unsqueeze(0)
+                # 下一个状态 - 同样保持4D形状
+                next_state = shuffled_data[t+1:t+2]  # [1, C, H, W]
                 
-                # 存储经验 (
+                # 存储经验时去掉批次维度，存储单个样本
                 self.replay_memory.append((
-                    state.clone().detach().cpu(),
+                    state.squeeze(0).clone().detach().cpu(),  # 去掉批次维度 [C, H, W]
                     action,
                     reward,
-                    next_state.clone().detach().cpu(),
+                    next_state.squeeze(0).clone().detach().cpu(),  # 去掉批次维度 [C, H, W]
                     terminal
                 ))
                 
@@ -191,7 +192,10 @@ def main():
         
     # 获取整个训练集 (用于DQN序列训练)
     train_data, train_labels = dataset.train_data.tensors
-    train_data = train_data.unsqueeze(1).float()  # 添加通道维度 (1x28x28)
+    # 确保数据是正确的形状: (N, 1, 28, 28)
+    if len(train_data.shape) == 3:  # (N, 28, 28)
+        train_data = train_data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
+    train_data = train_data.float()
     
     # 初始化DQN分类器
     input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
