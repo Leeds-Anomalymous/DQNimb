@@ -10,22 +10,14 @@ from datasets import ImbalancedDataset
 from Model import Q_Net_image
 
 
-
 class MyRL():
     def __init__(self):
-    
-        self.env = ImbalancedDataset()
-        self.threshold = 1e-4
-        self.max_steps = 5000
-        self.discount_factor = 0.9
-        self.episode_length = 200
-        self.episode_needed = 125
-        
-        #以下是对于数据类的初步规划
-        self.Biggroup = []
-        self.Smallgroup = []
-        self.bili= len(self.Smallgroup) / len(self.Biggroup) if len(self.Biggroup) > 0 else 1
 
+        self.max_steps = 1000
+        self.discount_factor = 0.9
+        self.mem_size = 5000
+        self.rho= 0.01
+        self.t_max = 120000
 
     
     def Reward(self, state, action, label):
@@ -53,15 +45,11 @@ class MyRL():
         # DQN超参数
         epochs = 5000
         losses = []
-        mem_size = 1000
-        batch_size = 200
-        gamma = 0.99    # 折扣因子
         epsilon = 1.0   # 初始探索率
         epsilon_min = 0.01
-        epsilon_decay = 0.995
         batch_size = 64
-        tau = 0.005 
-        replay = deque(maxlen=mem_size)
+        eta = 0.005 
+        replay = deque(maxlen=self.mem_size)
 
 
         #初始化 Q网和target网
@@ -104,7 +92,7 @@ class MyRL():
             # 计算目标Q值
             with torch.no_grad():
                 next_q = target_net(next_states).max(1, keepdim=True)[0]
-                target_q = rewards + gamma * next_q * (~dones)
+                target_q = rewards + self.discount_factor * next_q * (~dones)
             
             # 计算损失并更新
             loss = nn.MSELoss()(current_q, target_q)
@@ -114,7 +102,7 @@ class MyRL():
             
             # 更新目标网络 (软更新)
             for target_param, param in zip(target_net.parameters(), q_net.parameters()):
-                target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
+                target_param.data.copy_(eta * param.data + (1.0 - eta) * target_param.data)
             
             # 衰减探索率
             if epsilon > epsilon_min:
@@ -152,6 +140,14 @@ class MyRL():
                     break
             
             # 打印训练进度
+    def get_dataloaders(self, dataset_name, rho=0.01, batch_size=64):
+        """
+        生成训练和测试 DataLoader
+        :return: (train_loader, test_loader)
+        """
+        dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=batch_size)
+        train_loader, test_loader = dataset.get_dataloaders()
+        return train_loader, test_loader
         
                 
 
