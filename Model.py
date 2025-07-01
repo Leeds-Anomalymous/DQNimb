@@ -13,7 +13,7 @@ class Q_Net_image(nn.Module):
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         # Layer 2
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=5, stride=1, padding=2)
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         
@@ -29,7 +29,9 @@ class Q_Net_image(nn.Module):
         x = torch.zeros(1, *shape) 
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
+        #print("Conv output size:", x.shape[1:])
         return int(torch.prod(torch.tensor(x.shape[1:]))) # 计算卷积输出维度
+
 
     def forward(self, x):
         # 确保输入是 4D 张量 [batch, channel, height, width]
