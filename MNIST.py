@@ -1,3 +1,5 @@
+import torch
+import torchvision
 
 class MNIST():
     def __init__(self, data):
