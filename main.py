@@ -18,6 +18,32 @@ class MyRL():
         self.discount_factor = 0.9
         self.episode_length = 200
         self.episode_needed = 125
+        
+        #以下是对于数据类的初步规划
+        self.Biggroup = []
+        self.Smallgroup = []
+        self.bili= len(self.Smallgroup) / len(self.Biggroup) if len(self.Biggroup) > 0 else 1
+
+
+    def Reward(self, state, action, label):
+        """奖励函数"""
+        iterminal = False
+        # 检查动作是否为终止状态
+        if state in self.Biggroup:
+            if action == label:
+                reward = 1.0
+            else:
+                reward = -1.0
+                iterminal = True
+        elif state in self.Smallgroup:
+            if action == label:
+                reward = 0.5
+            else:
+                reward = -0.5
+                iterminal = True
+        # 这里可以根据具体任务定义奖励函数
+        # 例如，返回一个随机值作为奖励
+        return (reward, iterminal)
     
     def DQN(self):
         """深度Q网络实现"""
