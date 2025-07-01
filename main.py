@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
 from datasets import ImbalancedDataset
-from Modle import Q_Net_image
+from Model import Q_Net_image
 
 
 
