@@ -130,7 +130,7 @@ class MyRL():
             epoch += 1
             
             # 创建当前epoch的进度条
-            epoch_pbar = tqdm(enumerate(train_loader), 
+            epoch_pbar = tqdm(train_loader, 
                             desc=f"Epoch {epoch}", 
                             leave=False, 
                             unit="batch",
