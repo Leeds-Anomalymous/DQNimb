@@ -37,14 +37,18 @@ class MyRL():
                 iterminal = True
         elif state in self.Smallgroup:
             if action == label:
-                reward = 0.5
+                reward = self.bili
             else:
-                reward = -0.5
-                iterminal = True
-        # 这里可以根据具体任务定义奖励函数
-        # 例如，返回一个随机值作为奖励
+                reward = self.bili
+
+
+
         return (reward, iterminal)
     
+
+    
+
+
     def DQN(self):
         """深度Q网络实现"""
         # DQN超参数
@@ -57,6 +61,23 @@ class MyRL():
         max_moves =50
         h = 0
         sync_freq = 500#设置更新频率
+        j=0
+
+        def replay_experience():
+            """从经验回放缓冲区采样并训练网络"""
+            if len(replay) < batch_size:
+                return
+                
+            # 随机采样一批经验
+            batch = random.sample(replay, batch_size)
+            states = torch.cat([s1 for (s1, a, r, s2, d) in batch])
+            actions = torch.tensor([a for (s1, a, r, s2, d) in batch])
+            rewards = torch.tensor([r for (s1, a, r, s2, d) in batch])
+            next_states = torch.cat([s2 for (s1, a, r, s2, d) in batch])
+            dones = torch.tensor([d for (s1, a, r, s2, d) in batch])
+            
+
+                 
         
 
         
