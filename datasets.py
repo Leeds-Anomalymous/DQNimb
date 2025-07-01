@@ -32,11 +32,15 @@ class ImbalancedDataset:
                 torchvision.transforms.ToTensor(),
                 torchvision.transforms.Normalize((0.1307,), (0.3081,)) #对每个像素进行归一化，0.1307和0.3081分别是MNIST训练集的均值和标准差。这样可以让模型训练更稳定、收敛更快。
             ])
+            
+            print("正在下载MNIST训练集...")
             train_set = torchvision.datasets.MNIST(
-                root='./data', train=True, download=True, transform=transform, progress_bar=True
+                root='./data', train=True, download=True, transform=transform
             )
+            
+            print("正在下载MNIST测试集...")
             test_set = torchvision.datasets.MNIST(
-                root='./data', train=False, download=True, transform=transform, progress_bar=True
+                root='./data', train=False, download=True, transform=transform
             )
             return train_set, test_set
         elif self.dataset_name == "cifar10":
