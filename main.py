@@ -6,13 +6,13 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
-from MNIST import MNIST
+from datasets import ImbalancedDataset
 
 
 class MyRL():
     def __init__(self):
     
-        self.env = MNIST()
+        self.env = ImbalancedDataset()
         self.threshold = 1e-4
         self.max_steps = 5000
         self.discount_factor = 0.9
@@ -45,10 +45,6 @@ class MyRL():
 
         return (reward, iterminal)
     
-
-    
-
-
     def DQN(self):
         """深度Q网络实现"""
         # DQN超参数
@@ -75,6 +71,10 @@ class MyRL():
             rewards = torch.tensor([r for (s1, a, r, s2, d) in batch])
             next_states = torch.cat([s2 for (s1, a, r, s2, d) in batch])
             dones = torch.tensor([d for (s1, a, r, s2, d) in batch])
+        
+
+        for i in range(epochs):
+            state = self.env.
             
 
                  
