@@ -7,6 +7,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
 from datasets import ImbalancedDataset
+from Modle import Q_Net_image
+
 
 
 class MyRL():
@@ -24,7 +26,16 @@ class MyRL():
         self.Smallgroup = []
         self.bili= len(self.Smallgroup) / len(self.Biggroup) if len(self.Biggroup) > 0 else 1
 
-
+    def epsilon_greedy_action(state_num, epsilon):
+        """ε-贪婪策略选择动作"""
+        if random.random() < epsilon:
+            return random.randint(0, len(self.env.action_space) - 1)
+        else:
+            state_tensor = state_to_tensor(state_num).unsqueeze(0)
+            with torch.no_grad():
+                q_values = q_network(state_tensor)
+            return q_values.argmax().item()
+    
     def Reward(self, state, action, label):
         """奖励函数"""
         iterminal = False
@@ -45,7 +56,7 @@ class MyRL():
 
         return (reward, iterminal)
     
-    def DQN(self):
+    def DQN(self,Data):
         """深度Q网络实现"""
         # DQN超参数
         epochs = 5000
@@ -74,7 +85,9 @@ class MyRL():
         
 
         for i in range(epochs):
-            state = self.env.
+            state = self.Data[0][0]
+            for t in range(len(Data)):
+
             
 
                  
