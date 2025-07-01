@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
 from datasets import ImbalancedDataset
-from Modle import Q_Net_image
+from Model import Q_Net_image
 
 
 
@@ -69,6 +69,13 @@ class MyRL():
         h = 0
         sync_freq = 500#设置更新频率
         j=0
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        q_network = DQNNetwork(input_size, hidden_size, output_size).to(device)
+        target_network = DQNNetwork(input_size, hidden_size, output_size).to(device)
+
+        optimizer = optim.Adam(q_network.parameters(), lr=learning_rate)
+        criterion = nn.MSELoss()
 
         def replay_experience():
             """从经验回放缓冲区采样并训练网络"""
