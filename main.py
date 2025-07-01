@@ -6,8 +6,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 from collections import deque
 from tqdm import tqdm
+import os
 from datasets import ImbalancedDataset
 from Model import Q_Net_image
+from evaluate import evaluate_model  # 导入评估模块
 
 
 class MyRL():
@@ -72,7 +74,7 @@ class MyRL():
     def replay_experience(self):
         """从经验回放缓冲区采样并训练网络"""
         if len(self.replay_memory) < self.batch_size:
-            return
+            return False  # 返回False表示没有执行经验回放
                 
         # 随机采样一批经验
         batch = random.sample(self.replay_memory, self.batch_size)
@@ -108,16 +110,15 @@ class MyRL():
         # 衰减探索率
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_decay
-    
+            
+        return True  # 返回True表示成功执行了经验回放
 
-    def train(self, train_data, train_labels):
+    def train(self, train_loader):
         """
-        训练DQN分类器 (实现论文Algorithm 2)
+        使用dataloader训练DQN分类器 (实现论文Algorithm 2)
         Args:
-            train_data: 训练数据张量 (N, C, H, W)
-            train_labels: 训练标签张量 (N,)
+            train_loader: 训练数据的DataLoader
         """
-        num_samples = len(train_data)
         self.step_count = 0
         
         # 创建总体训练进度条
@@ -127,70 +128,76 @@ class MyRL():
         epoch = 0
         while self.step_count < self.t_max:
             epoch += 1
-            # 打乱训练数据 
-            indices = torch.randperm(num_samples)
-            shuffled_data = train_data[indices]
-            shuffled_labels = train_labels[indices]
-            
-            # 初始化状态 - 不需要添加批次维度，因为数据已经是4D的
-            state = shuffled_data[0:1]  # 取第一个样本，保持4D形状 [1, C, H, W]
             
             # 创建当前epoch的进度条
-            epoch_pbar = tqdm(range(num_samples - 1), 
+            epoch_pbar = tqdm(enumerate(train_loader), 
                             desc=f"Epoch {epoch}", 
                             leave=False, 
-                            unit="sample")
+                            unit="batch",
+                            total=len(train_loader))
             
             # 遍历数据集
-            for t in epoch_pbar:  # 注意: 最后一个样本没有next_state
-                # 选择动作 (ε-greedy策略)
-                if random.random() < self.epsilon:
-                    action = random.randint(0, 1)  # 随机探索
-                else:
-                    with torch.no_grad():
-                        q_values = self.q_net(state.to(self.device))
-                    action = q_values.argmax().item()
+            for data, labels in epoch_pbar:
+                # 确保数据是正确的形状: (N, C, H, W)
+                if len(data.shape) == 3:  # (N, 28, 28)
+                    data = data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
+                data = data.float().to(self.device)
+                labels = labels.to(self.device)
                 
-                # 获取奖励和终止标志 
-                reward, terminal = self.compute_reward(action, shuffled_labels[t].item())
-                
-                # 下一个状态 - 同样保持4D形状
-                next_state = shuffled_data[t+1:t+2]  # [1, C, H, W]
-                
-                # 存储经验时去掉批次维度，存储单个样本
-                self.replay_memory.append((
-                    state.squeeze(0).clone().detach().cpu(),  # 去掉批次维度 [C, H, W]
-                    action,
-                    reward,
-                    next_state.squeeze(0).clone().detach().cpu(),  # 去掉批次维度 [C, H, W]
-                    terminal
-                ))
-                
-                # 训练更新 
-                self.replay_experience()
-                self.step_count += 1
-                
-                # 更新进度条信息
-                epoch_pbar.set_postfix({
-                    'Step': self.step_count,
-                    'Epsilon': f'{self.epsilon:.4f}',
-                    'Reward': f'{reward:.2f}',
-                    'Action': action,
-                    'Terminal': terminal
-                })
-                total_pbar.update(1)
-                total_pbar.set_postfix({
-                    'Epoch': epoch,
-                    'Epsilon': f'{self.epsilon:.4f}',
-                    'Memory': len(self.replay_memory)
-                })
-                
-                # 检查终止条件 
-                if terminal:
-                    break
-                
-                # 更新状态
-                state = next_state
+                # 处理批次中的每个样本
+                for i in range(len(data) - 1):  # 最后一个样本没有next_state
+                    # 当前状态
+                    state = data[i:i+1]  # 保持4D形状 [1, C, H, W]
+                    
+                    # 选择动作 (ε-greedy策略)
+                    if random.random() < self.epsilon:
+                        action = random.randint(0, 1)  # 随机探索
+                    else:
+                        with torch.no_grad():
+                            q_values = self.q_net(state)
+                        action = q_values.argmax().item()
+                    
+                    # 获取奖励和终止标志 
+                    reward, terminal = self.compute_reward(action, labels[i].item())
+                    
+                    # 下一个状态
+                    next_state = data[i+1:i+2]  # [1, C, H, W]
+                    
+                    # 存储经验
+                    self.replay_memory.append((
+                        state.squeeze(0).clone().detach().cpu(),  # [C, H, W]
+                        action,
+                        reward,
+                        next_state.squeeze(0).clone().detach().cpu(),  # [C, H, W]
+                        terminal
+                    ))
+                    
+                    # 训练更新 - 只有当成功执行经验回放时才增加步数计数
+                    if self.replay_experience():
+                        self.step_count += 1
+                        total_pbar.update(1)
+                    
+                    # 更新进度条信息
+                    epoch_pbar.set_postfix({
+                        'Step': self.step_count,
+                        'Epsilon': f'{self.epsilon:.4f}',
+                        'Reward': f'{reward:.2f}',
+                        'Action': action,
+                        'Terminal': terminal
+                    })
+                    total_pbar.set_postfix({
+                        'Epoch': epoch,
+                        'Epsilon': f'{self.epsilon:.4f}',
+                        'Memory': len(self.replay_memory)
+                    })
+                    
+                    # 检查终止条件 
+                    if terminal:
+                        break
+                    
+                    # 检查是否达到最大步数
+                    if self.step_count >= self.t_max:
+                        break
                 
                 # 检查是否达到最大步数
                 if self.step_count >= self.t_max:
@@ -219,19 +226,27 @@ def main():
     # 创建不平衡数据集
     dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
         
-    # 获取整个训练集 (用于DQN序列训练)
-    train_data, train_labels = dataset.train_data.tensors
-    # 确保数据是正确的形状: (N, 1, 28, 28)
-    if len(train_data.shape) == 3:  # (N, 28, 28)
-        train_data = train_data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
-    train_data = train_data.float()
+    # 直接获取训练和测试的dataloader
+    train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
     input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
     classifier = MyRL(input_shape, rho=0.01)
     
-    # 开始训练
-    classifier.train(train_data, train_labels)
+    # 开始训练，使用dataloader
+    classifier.train(train_loader)
+    
+    # 创建checkpoints目录（如果不存在）
+    os.makedirs('checkpoints', exist_ok=True)
+    
+    # 保存模型
+    model_path = os.path.join('checkpoints', 'dqn_classifier.pth')
+    torch.save(classifier.q_net.state_dict(), model_path)
+    print(f"Model saved to {model_path}")
+    
+    # 评估模型
+    evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints')
+
 
 if __name__ == "__main__":
     main()
