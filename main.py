@@ -165,10 +165,10 @@ class MyRL():
                     
                     # 存储经验
                     self.replay_memory.append((
-                        state.squeeze(0).clone().detach().cpu(),  # [C, H, W]
+                        state.squeeze(0).clone().detach(),  # 不转到cpu
                         action,
                         reward,
-                        next_state.squeeze(0).clone().detach().cpu(),  # [C, H, W]
+                        next_state.squeeze(0).clone().detach(),  # 不转到cpu
                         terminal
                     ))
                     
