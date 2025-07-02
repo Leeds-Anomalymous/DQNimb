@@ -33,6 +33,8 @@ class Q_Net_image(nn.Module):
 
 
     def forward(self, x):
+        # 确保输入和模型权重在同一设备
+        x = x.to(self.fc1.weight.device)
         # 确保输入是 4D 张量 [batch, channel, height, width]
         if len(x.shape) == 3:  
             x = x.unsqueeze(0)
