@@ -28,6 +28,7 @@ class ImbalancedDataset:
         """加载原始数据集（需扩展时在此添加新数据集）"""
         if self.dataset_name == "mnist":
             self.positive_classes = [2]  # MNIST中少数类的标签（例如：数字2）
+            self.negative_classes = [i for i in range(10) if i not in self.positive_classes]  # MNIST中默认将除正类外的所有标签设为负类
             transform = torchvision.transforms.Compose([
                 torchvision.transforms.ToTensor(),
                 torchvision.transforms.Normalize((0.1307,), (0.3081,)) #对每个像素进行归一化，0.1307和0.3081分别是MNIST训练集的均值和标准差。这样可以让模型训练更稳定、收敛更快。
@@ -46,6 +47,7 @@ class ImbalancedDataset:
         elif self.dataset_name == "cifar10":
             # CIFAR-10支持
             self.positive_classes = [1]  # 汽车类
+            self.negative_classes = [3, 4, 5, 6]  # 指定CIFAR10中的负类标签
             # 数据转换
             transform = torchvision.transforms.Compose([
                 torchvision.transforms.ToTensor(),
@@ -89,7 +91,7 @@ class ImbalancedDataset:
         
         # 降采样训练集
         selected_data, remapped_labels = self._downsample_data(
-            self.train_data.data, train_labels, self.positive_classes
+            self.train_data.data, train_labels, self.positive_classes, self.negative_classes
         )
         
         # 确保数据是torch张量
@@ -99,12 +101,16 @@ class ImbalancedDataset:
         self.train_data = TensorDataset(selected_data, torch.tensor(remapped_labels))
         
         # 处理测试集（仅重映射标签，不降采样）
+        # 只选择正类和负类标签的数据
+        valid_indices = np.where(np.isin(test_labels, self.positive_classes) | np.isin(test_labels, self.negative_classes))[0]
+        test_data = self.test_data.data[valid_indices]
+        test_labels = test_labels[valid_indices]
+        
         remapped_test_labels = np.where(
             np.isin(test_labels, self.positive_classes), 0, 1
         )
         
         # 确保测试数据是torch张量
-        test_data = self.test_data.data
         if not isinstance(test_data, torch.Tensor):
             test_data = torch.tensor(test_data)
             
@@ -113,17 +119,18 @@ class ImbalancedDataset:
             torch.tensor(remapped_test_labels)
         )
 
-    def _downsample_data(self, data, labels, positive_classes):
+    def _downsample_data(self, data, labels, positive_classes, negative_classes):
         """
         专门用于降采样的方法
         :param data: 原始数据
         :param labels: 原始标签
         :param positive_classes: 正类标签值列表
+        :param negative_classes: 负类标签值列表
         :return: (降采样后的数据, 重映射后的标签)
         """
         # Step 1: 分离正/负类索引
         positive_idx = np.where(np.isin(labels, positive_classes))[0]
-        negative_idx = np.where(~np.isin(labels, positive_classes))[0]
+        negative_idx = np.where(np.isin(labels, negative_classes))[0]
         n_negative = len(negative_idx)  # 负类原始样本数 N
         
         # Step 2: 降采样正类（目标样本数 = rho * N）
@@ -172,7 +179,7 @@ if __name__ == "__main__":
     from datasets import ImbalancedDataset
 
     # 初始化 MNIST 数据集（rho=0.01, 正类=标签2）
-    dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
+    dataset = ImbalancedDataset(dataset_name="cifar", rho=0.01, batch_size=64)
 
     # 获取 DataLoader
     train_loader, test_loader = dataset.get_dataloaders()
