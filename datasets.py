@@ -58,7 +58,7 @@ class ImbalancedDataset:
             ])
 
             # 设置CIFAR-10下载源为清华镜像
-            torchvision.datasets.CIFAR10.url = "https://mirrors.tuna.tsinghua.edu.cn/pytorch-datasets/cifar-10-python.tar.gz"
+            torchvision.datasets.CIFAR10.url = "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch/CIFAR-10.tar.gz"
             
             print("正在下载CIFAR-10训练集...")
             train_set = torchvision.datasets.CIFAR10(
