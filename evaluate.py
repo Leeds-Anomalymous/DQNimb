@@ -82,7 +82,10 @@ def evaluate_model(model, test_loader, save_dir='./'):
     
     with torch.no_grad():
         for data, labels in test_loader:
-            data = data.to(device)
+            # 确保数据是正确的形状和类型
+            if len(data.shape) == 3:  # (N, 28, 28)
+                data = data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
+            data = data.float().to(device)
             outputs = model(data)
             _, predicted = torch.max(outputs, 1)
             
