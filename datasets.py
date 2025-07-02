@@ -168,16 +168,16 @@ class ImbalancedDataset:
             "test": np.bincount(test_labels)
         }
 # Example usage:
+if __name__ == "__main__":
+    from datasets import ImbalancedDataset
 
-from datasets import ImbalancedDataset
+    # 初始化 MNIST 数据集（rho=0.01, 正类=标签2）
+    dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
 
-# 初始化 MNIST 数据集（rho=0.01, 正类=标签2）
-dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
+    # 获取 DataLoader
+    train_loader, test_loader = dataset.get_dataloaders()
 
-# 获取 DataLoader
-train_loader, test_loader = dataset.get_dataloaders()
-
-# 验证类别分布
-dist = dataset.get_class_distribution()
-print(f"Train distribution: {dist['train']}")  # e.g., [540, 54042] for rho=0.01
-print(f"Test distribution: {dist['test']}")     # e.g., [1032, 8968]
+    # 验证类别分布
+    dist = dataset.get_class_distribution()
+    print(f"Train distribution: {dist['train']}")  # e.g., [540, 54042] for rho=0.01
+    print(f"Test distribution: {dist['test']}")     # e.g., [1032, 8968]
