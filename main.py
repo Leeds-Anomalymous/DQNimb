@@ -229,7 +229,7 @@ class MyRL():
     
 def main():
     # 创建不平衡数据集
-    dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
+    dataset = ImbalancedDataset(dataset_name="cifar10", rho=0.01, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()

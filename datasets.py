@@ -179,7 +179,7 @@ if __name__ == "__main__":
     from datasets import ImbalancedDataset
 
     # 初始化 MNIST 数据集（rho=0.01, 正类=标签2）
-    dataset = ImbalancedDataset(dataset_name="cifar", rho=0.01, batch_size=64)
+    dataset = ImbalancedDataset(dataset_name="cifar10", rho=0.01, batch_size=64)
 
     # 获取 DataLoader
     train_loader, test_loader = dataset.get_dataloaders()
