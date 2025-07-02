@@ -202,7 +202,8 @@ class MyRL():
                     # 检查是否达到最大步数
                     if self.step_count >= self.t_max:
                         break
-                
+                if terminal:
+                    break  
                 # 检查是否达到最大步数
                 if self.step_count >= self.t_max:
                     break
