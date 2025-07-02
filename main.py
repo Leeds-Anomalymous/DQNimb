@@ -146,6 +146,9 @@ class MyRL():
                 if len(data.shape) == 3:  # (N, 28, 28)
                     data = data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
                 data = data.float().to(self.device)
+                # 修正通道顺序
+                if data.shape[1] != 3 and data.shape[-1] == 3:
+                    data = data.permute(0, 3, 1, 2)  # NHWC -> NCHW
                 labels = labels.to(self.device)
                 
                 # 处理批次中的每个样本
