@@ -8,7 +8,7 @@ class ImbalancedDataset:
     def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42):
         """
         初始化数据集处理类
-        :param dataset_name: 数据集名称 (e.g., "mnist")
+        :param dataset_name: 数据集名称 (e.g., "mnist", "cifar10")
         :param rho: 不平衡因子 (正类样本数 = rho * 负类样本数)
         :param batch_size: DataLoader 批次大小
         :param seed: 随机种子（确保可复现）
@@ -44,11 +44,27 @@ class ImbalancedDataset:
             )
             return train_set, test_set
         elif self.dataset_name == "cifar10":
-            # 示例：未来扩展 CIFAR-10
-            # self.positive_classes = [1, 2]  # 例如：汽车和鸟类
-            # transform = ...
-            # train_set = torchvision.datasets.CIFAR10(...)
-            raise NotImplementedError("CIFAR-10 support coming soon!")
+            # CIFAR-10支持
+            self.positive_classes = [1]  # 汽车类
+            # 数据转换
+            transform = torchvision.transforms.Compose([
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), 
+                    (0.2470, 0.2435, 0.2616)
+                )
+            ])
+            
+            print("正在下载CIFAR-10训练集...")
+            train_set = torchvision.datasets.CIFAR10(
+                root='./data', train=True, download=True, transform=transform
+            )
+            
+            print("正在下载CIFAR-10测试集...")
+            test_set = torchvision.datasets.CIFAR10(
+                root='./data', train=False, download=True, transform=transform
+            )
+            return train_set, test_set
         else:
             raise ValueError(f"Unsupported dataset: {self.dataset_name}")
 
@@ -60,22 +76,40 @@ class ImbalancedDataset:
           - 负类（多数类）标签 -> 1
           - 正类样本数降至 rho * N（N=负类原始样本数）
         """
-        # 获取标签数据
-        train_labels = self.train_data.targets.numpy()
-        test_labels = self.test_data.targets.numpy()
+        # 获取标签数据 - 处理不同数据集的标签格式
+        if isinstance(self.train_data.targets, list):
+            train_labels = np.array(self.train_data.targets)
+        else:
+            train_labels = self.train_data.targets.numpy()
+            
+        if isinstance(self.test_data.targets, list):
+            test_labels = np.array(self.test_data.targets)
+        else:
+            test_labels = self.test_data.targets.numpy()
         
         # 降采样训练集
         selected_data, remapped_labels = self._downsample_data(
             self.train_data.data, train_labels, self.positive_classes
         )
+        
+        # 确保数据是torch张量
+        if not isinstance(selected_data, torch.Tensor):
+            selected_data = torch.tensor(selected_data)
+        
         self.train_data = TensorDataset(selected_data, torch.tensor(remapped_labels))
         
         # 处理测试集（仅重映射标签，不降采样）
         remapped_test_labels = np.where(
             np.isin(test_labels, self.positive_classes), 0, 1
         )
+        
+        # 确保测试数据是torch张量
+        test_data = self.test_data.data
+        if not isinstance(test_data, torch.Tensor):
+            test_data = torch.tensor(test_data)
+            
         self.test_data = TensorDataset(
-            self.test_data.data, 
+            test_data, 
             torch.tensor(remapped_test_labels)
         )
 
@@ -134,8 +168,8 @@ class ImbalancedDataset:
             "test": np.bincount(test_labels)
         }
 # Example usage:
-'''
-from dataset import ImbalancedDataset
+
+from datasets import ImbalancedDataset
 
 # 初始化 MNIST 数据集（rho=0.01, 正类=标签2）
 dataset = ImbalancedDataset(dataset_name="mnist", rho=0.01, batch_size=64)
@@ -146,4 +180,4 @@ train_loader, test_loader = dataset.get_dataloaders()
 # 验证类别分布
 dist = dataset.get_class_distribution()
 print(f"Train distribution: {dist['train']}")  # e.g., [540, 54042] for rho=0.01
-print(f"Test distribution: {dist['test']}")     # e.g., [1032, 8968]'''
+print(f"Test distribution: {dist['test']}")     # e.g., [1032, 8968]

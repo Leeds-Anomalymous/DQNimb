@@ -185,15 +185,15 @@ class Cifar10Imbalanced:
         }
 
 
-'from setdataCifa import Cifar10Imbalanced'
+from setdataCifa import Cifar10Imbalanced
 
 # 创建高度不平衡数据集（正类只有负类的1%）
-'dataset = Cifar10Imbalanced(rho=0.01, batch_size=32)'
+dataset = Cifar10Imbalanced(rho=0.04, batch_size=64)
 
 # 获取数据加载器
-'train_loader, test_loader = dataset.get_dataloaders()'
+train_loader, test_loader = dataset.get_dataloaders()
 
 # 查看类别分布
-'dist = dataset.get_class_distribution()'
-#print(f"训练集分布: 正类={dist['train'][0]}, 负类={dist['train'][1]}")
-#print(f"测试集分布: 正类={dist['test'][0]}, 负类={dist['test'][1]}")
+dist = dataset.get_class_distribution()
+print(f"训练集分布: 正类={dist['train'][0]}, 负类={dist['train'][1]}")
+print(f"测试集分布: 正类={dist['test'][0]}, 负类={dist['test'][1]}")
