@@ -7,18 +7,18 @@ import os
 
 def compute_gmean(y_true, y_pred):
     """
-    计算G-mean: sqrt(sensitivity * specificity)
+    计算G-mean: sqrt(recall * specificity)
     sensitivity = recall of positive class
     specificity = recall of negative class
     """
     # 少数类(0)的召回率
-    recall_minority = recall_score(y_true, y_pred, pos_label=0)
+    recall = recall_score(y_true, y_pred, pos_label=0)
     
     # 多数类(1)的召回率
-    recall_majority = recall_score(y_true, y_pred, pos_label=1)
+    specificity = recall_score(y_true, y_pred, pos_label=1)
     
     # 计算G-mean
-    g_mean = np.sqrt(recall_minority * recall_majority)
+    g_mean = np.sqrt(recall * specificity)
     
     return g_mean
 
