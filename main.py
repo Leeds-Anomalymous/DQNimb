@@ -235,7 +235,7 @@ def main():
     train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
-    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
+    input_shape = (3, 32, 32)  # 输入形状: 通道, 高度, 宽度
     classifier = MyRL(input_shape, rho=0.01)
     
     # 开始训练，使用dataloader
