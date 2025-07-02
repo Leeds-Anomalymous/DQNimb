@@ -37,6 +37,10 @@ class MyRL():
 
         # 设备配置
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # 将网络移动到设备
+        self.q_net.to(self.device)
+        self.target_net.to(self.device)
 
         # 训练计数器
         self.step_count = 0
@@ -80,7 +84,7 @@ class MyRL():
         batch = random.sample(self.replay_memory, self.batch_size)
         states, actions, rewards, next_states, terminals = zip(*batch)
 
-        # 将3D张量列表转换为4D批次张量 [batch_size, C, H, W]
+        # 将数据移动到正确的设备
         states = torch.stack(states).to(self.device)
         actions = torch.tensor(actions, dtype=torch.int64, device=self.device).unsqueeze(1)
         rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device).unsqueeze(1)
@@ -163,12 +167,12 @@ class MyRL():
                     # 下一个状态
                     next_state = data[i+1:i+2]  # [1, C, H, W]
                     
-                    # 存储经验
+                    # 存储经验 - 移动到CPU以节省GPU内存
                     self.replay_memory.append((
-                        state.squeeze(0).clone().detach(),  # 不转到cpu
+                        state.squeeze(0).cpu().clone().detach(),
                         action,
                         reward,
-                        next_state.squeeze(0).clone().detach(),  # 不转到cpu
+                        next_state.squeeze(0).cpu().clone().detach(),
                         terminal
                     ))
                     
