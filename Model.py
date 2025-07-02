@@ -42,7 +42,7 @@ class Q_Net_image(nn.Module):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
         # 展平 + 全连接
-        x = x.view(x.size(0), -1) 
+        x = x.reshape(x.size(0), -1) 
         x = self.relu3(self.fc1(x))
         x = self.fc2(x)
         

@@ -1,3 +1,5 @@
+TEST_ONLY = False  # 设置为 True 时只进行评估，不进行训练
+
 import random
 import numpy as np
 import torch
@@ -146,6 +148,9 @@ class MyRL():
                 if len(data.shape) == 3:  # (N, 28, 28)
                     data = data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
                 data = data.float().to(self.device)
+                # 修正通道顺序
+                if data.shape[1] != 3 and data.shape[-1] == 3:
+                    data = data.permute(0, 3, 1, 2)  # NHWC -> NCHW
                 labels = labels.to(self.device)
                 
                 # 处理批次中的每个样本
@@ -235,22 +240,40 @@ def main():
     train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
-    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
-    classifier = MyRL(input_shape, rho=0.01)
-    
-    # 开始训练，使用dataloader
-    classifier.train(train_loader)
+    input_shape = (3, 32, 32)  # 输入形状: 通道, 高度, 宽度
     
     # 创建checkpoints目录（如果不存在）
     os.makedirs('checkpoints', exist_ok=True)
-    
-    # 保存模型
     model_path = os.path.join('checkpoints', 'dqn_classifier.pth')
-    torch.save(classifier.q_net.state_dict(), model_path)
-    print(f"Model saved to {model_path}")
     
-    # 评估模型
-    evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints')
+    if TEST_ONLY:
+        print("测试模式: 仅加载模型并评估")
+        # 创建模型但不训练
+        q_net = Q_Net_image(input_shape, output_dim=2)
+        
+        # 加载预训练模型
+        if os.path.exists(model_path):
+            q_net.load_state_dict(torch.load(model_path))
+            print(f"成功加载模型: {model_path}")
+            
+            # 评估模型
+            evaluate_model(q_net, test_loader, save_dir='checkpoints')
+        else:
+            print(f"错误: 未找到预训练模型 {model_path}")
+            print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
+    else:
+        print("训练模式: 将进行模型训练和评估")
+        classifier = MyRL(input_shape, rho=0.01)
+        
+        # 开始训练，使用dataloader
+        classifier.train(train_loader)
+        
+        # 保存模型
+        torch.save(classifier.q_net.state_dict(), model_path)
+        print(f"模型已保存到 {model_path}")
+        
+        # 评估模型
+        evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints')
 
 
 if __name__ == "__main__":

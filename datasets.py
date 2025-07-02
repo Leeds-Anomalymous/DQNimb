@@ -56,7 +56,7 @@ class ImbalancedDataset:
                     (0.2470, 0.2435, 0.2616)
                 )
             ])
-            
+      
             print("正在下载CIFAR-10训练集...")
             train_set = torchvision.datasets.CIFAR10(
                 root='./data', train=True, download=True, transform=transform
