@@ -52,11 +52,11 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['少数类(0)', '多数类(1)'],
-                yticklabels=['少数类(0)', '多数类(1)'])
-    plt.xlabel('预测标签')
-    plt.ylabel('真实标签')
-    plt.title('混淆矩阵')
+                xticklabels=['Minority (0)', 'Majority (1)'],
+                yticklabels=['Minority (0)', 'Majority (1)'])
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.title('Confusion Matrix')
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
