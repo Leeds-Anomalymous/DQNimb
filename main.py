@@ -48,7 +48,7 @@ class MyRL():
         self.step_count = 0
         self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max * 0.8)
+        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max * 0.5)
 
     def compute_reward(self, action, label):
         """
@@ -181,6 +181,11 @@ class MyRL():
                         terminal
                     ))
                     
+                    # 检查是否达断开，若断开，则不更新目标网络
+                    if terminal:
+                        break
+
+
                     # 训练更新 - 只有当成功执行经验回放时才增加步数计数
                     if self.replay_experience():
                         self.step_count += 1
@@ -190,7 +195,7 @@ class MyRL():
                     epoch_pbar.set_postfix({
                         'Step': self.step_count,
                         'Epsilon': f'{self.epsilon:.4f}',
-                        'Reward': f'{reward:.2f}',
+                        'Reward': str(reward),  # 显示reward的全部小数位
                         'Action': action,
                         'Terminal': terminal
                     })
@@ -207,8 +212,8 @@ class MyRL():
                     # 检查是否达到最大步数
                     if self.step_count >= self.t_max:
                         break
-                if terminal:
-                    break  
+                #if terminal:
+                #    break  
                 # 检查是否达到最大步数
                 if self.step_count >= self.t_max:
                     break
@@ -222,25 +227,16 @@ class MyRL():
         total_pbar.close()
         print("Training completed!")
     
-
-    def get_dataloaders(self, dataset_name, rho=0.01, batch_size=64):
-        """
-        生成训练和测试 DataLoader
-        :return: (train_loader, test_loader)
-        """
-        dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=batch_size)
-        train_loader, test_loader = dataset.get_dataloaders()
-        return train_loader, test_loader
     
 def main():
     # 创建不平衡数据集
-    dataset = ImbalancedDataset(dataset_name="cifar10", rho=0.01, batch_size=64)
+    dataset = ImbalancedDataset(dataset_name="mnist", rho=0.0005, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
-    input_shape = (3, 32, 32)  # 输入形状: 通道, 高度, 宽度
+    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
     
     # 创建checkpoints目录（如果不存在）
     os.makedirs('checkpoints', exist_ok=True)
@@ -263,7 +259,7 @@ def main():
             print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
     else:
         print("训练模式: 将进行模型训练和评估")
-        classifier = MyRL(input_shape, rho=0.01)
+        classifier = MyRL(input_shape, rho=0.0005)
         
         # 开始训练，使用dataloader
         classifier.train(train_loader)
