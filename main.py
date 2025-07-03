@@ -77,7 +77,7 @@ class MyRL():
                 # 注意: 多数类错误不终止episode
         return reward, terminal
 
-    def replay_experience(self):
+    def replay_experience(self, update_target=True):
         """从经验回放缓冲区采样并训练网络"""
         if len(self.replay_memory) < self.batch_size:
             return False  # 返回False表示没有执行经验回放
@@ -109,9 +109,10 @@ class MyRL():
         loss.backward()
         self.optimizer.step()
             
-        # 更新目标网络 (软更新)
-        for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
-            target_param.data.copy_(self.eta * param.data + (1.0 - self.eta) * target_param.data)
+        # 更新目标网络 (软更新)，只在update_target为True时更新
+        if update_target:
+            for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
+                target_param.data.copy_(self.eta * param.data + (1.0 - self.eta) * target_param.data)
             
         # 衰减探索率
         if self.epsilon > self.epsilon_min:
@@ -183,8 +184,11 @@ class MyRL():
                     
                     # 检查是否达断开，若断开，则不更新目标网络
                     if terminal:
+                        # 当terminal=True时，只更新Q网络，不更新目标网络
+                        if self.replay_experience(update_target=False):
+                            self.step_count += 1
+                            total_pbar.update(1)
                         break
-
 
                     # 训练更新 - 只有当成功执行经验回放时才增加步数计数
                     if self.replay_experience():
@@ -209,9 +213,10 @@ class MyRL():
                     # 检查是否达到最大步数
                     if self.step_count >= self.t_max:
                         break
-                #if terminal:
-                #    break  
-                # 检查是否达到最大步数
+                
+                if terminal:
+                    break  
+                #检查是否达到最大步数
                 if self.step_count >= self.t_max:
                     break
             
