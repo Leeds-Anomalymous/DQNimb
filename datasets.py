@@ -48,8 +48,17 @@ class ImbalancedDataset:
             # CIFAR-10支持
             self.positive_classes = [1]  # 汽车类
             self.negative_classes = [3, 4, 5, 6]  # 指定CIFAR10中的负类标签
-            # 数据转换
-            transform = torchvision.transforms.Compose([
+            # 数据增强：训练集用标准增强，测试集只做归一化
+            train_transform = torchvision.transforms.Compose([
+                torchvision.transforms.RandomCrop(32, padding=4),
+                torchvision.transforms.RandomHorizontalFlip(),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), 
+                    (0.2470, 0.2435, 0.2616)
+                )
+            ])
+            test_transform = torchvision.transforms.Compose([
                 torchvision.transforms.ToTensor(),
                 torchvision.transforms.Normalize(
                     (0.4914, 0.4822, 0.4465), 
@@ -59,12 +68,12 @@ class ImbalancedDataset:
       
             print("正在下载CIFAR-10训练集...")
             train_set = torchvision.datasets.CIFAR10(
-                root='./data', train=True, download=True, transform=transform
+                root='./data', train=True, download=True, transform=train_transform
             )
             
             print("正在下载CIFAR-10测试集...")
             test_set = torchvision.datasets.CIFAR10(
-                root='./data', train=False, download=True, transform=transform
+                root='./data', train=False, download=True, transform=test_transform
             )
             return train_set, test_set
         else:
