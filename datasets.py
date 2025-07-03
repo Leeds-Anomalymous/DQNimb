@@ -173,6 +173,17 @@ class ImbalancedDataset:
             self.test_data, batch_size=self.batch_size, shuffle=False
         )
         return train_loader, test_loader
+        
+    def get_full_dataset(self):
+        """
+        直接返回完整的训练和测试数据集
+        :return: (train_data, train_labels, test_data, test_labels)
+        """
+        train_data = self.train_data.tensors[0]
+        train_labels = self.train_data.tensors[1]
+        test_data = self.test_data.tensors[0]
+        test_labels = self.test_data.tensors[1]
+        return train_data, train_labels, test_data, test_labels
 
     # 可选：添加其他辅助方法
     def get_class_distribution(self):

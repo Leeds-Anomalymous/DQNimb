@@ -38,12 +38,16 @@ class Q_Net_image(nn.Module):
         # 确保输入是 4D 张量 [batch, channel, height, width]
         if len(x.shape) == 3:  
             x = x.unsqueeze(0)
-        
-        x = self.pool1(self.relu1(self.conv1(x)))
-        x = self.pool2(self.relu2(self.conv2(x)))
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
         # 展平 + 全连接
         x = x.reshape(x.size(0), -1) 
-        x = self.relu3(self.fc1(x))
+        x = self.fc1(x)
+        x = self.relu3(x)
         x = self.fc2(x)
         
         return x

@@ -48,7 +48,7 @@ class MyRL():
         self.step_count = 0
         self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max * 0.5)
+        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max)
 
     def compute_reward(self, action, label):
         """
@@ -120,114 +120,126 @@ class MyRL():
             
         return True  # 返回True表示成功执行了经验回放
 
-    def train(self, train_loader):
+    def train(self, dataset):
         """
-        使用dataloader训练DQN分类器 (实现论文Algorithm 2)
+        按照论文Algorithm 2训练DQN分类器
         Args:
-            train_loader: 训练数据的DataLoader
+            dataset: 数据集对象
         """
+        # 获取完整数据集
+        train_data, train_labels, _, _ = dataset.get_full_dataset()
+        
         self.step_count = 0
+        episode = 0
         
         # 创建总体训练进度条
         total_pbar = tqdm(total=self.t_max, desc="Training Progress", unit="step")
         
-        # 训练直到达到最大步数
-        epoch = 0
+        # 外层循环: for episode k = 1 to K do (直到达到最大步数)
         while self.step_count < self.t_max:
-            epoch += 1
+            episode += 1
             
-            # 创建当前epoch的进度条
-            epoch_pbar = tqdm(train_loader, 
-                            desc=f"Epoch {epoch}", 
-                            leave=False, 
-                            unit="batch",
-                            total=len(train_loader))
+            # 打乱训练数据顺序 (Shuffle the training data D)
+            indices = torch.randperm(len(train_data))
+            shuffled_data = train_data[indices]
+            shuffled_labels = train_labels[indices]
             
-            # 遍历数据集
-            for data, labels in epoch_pbar:
-                # 确保数据是正确的形状: (N, C, H, W)
-                if len(data.shape) == 3:  # (N, 28, 28)
-                    data = data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
-                data = data.float().to(self.device)
-                # 修正通道顺序
-                if data.shape[1] != 3 and data.shape[-1] == 3:
-                    data = data.permute(0, 3, 1, 2)  # NHWC -> NCHW
-                labels = labels.to(self.device)
-                
-                # 处理批次中的每个样本
-                for i in range(len(data) - 1):  # 最后一个样本没有next_state
-                    # 当前状态
-                    state = data[i:i+1]  # 保持4D形状 [1, C, H, W]
-                    
-                    # 选择动作 (ε-greedy策略)
-                    if random.random() < self.epsilon:
-                        action = random.randint(0, 1)  # 随机探索
-                    else:
-                        with torch.no_grad():
-                            q_values = self.q_net(state)
-                        action = q_values.argmax().item()
-                    
-                    # 获取奖励和终止标志 
-                    reward, terminal = self.compute_reward(action, labels[i].item())
-                    
-                    # 下一个状态
-                    next_state = data[i+1:i+2]  # [1, C, H, W]
-                    
-                    # 存储经验 - 移动到CPU以节省GPU内存
-                    self.replay_memory.append((
-                        state.squeeze(0).cpu().clone().detach(),
-                        action,
-                        reward,
-                        next_state.squeeze(0).cpu().clone().detach(),
-                        terminal
-                    ))
-                    
-                    # 检查是否达断开，若断开，则不更新目标网络
-                    if terminal:
-                        # 当terminal=True时，只更新Q网络，不更新目标网络
-                        if self.replay_experience(update_target=False):
-                            self.step_count += 1
-                            total_pbar.update(1)
-                        break
-
-                    # 训练更新 - 只有当成功执行经验回放时才增加步数计数
-                    if self.replay_experience():
-                        self.step_count += 1
-                        total_pbar.update(1)
-                    
-                    # 更新进度条信息
-                    epoch_pbar.set_postfix({
-                        'Step': self.step_count,
-                        'Epsilon': f'{self.epsilon:.4f}',
-                        'Reward': str(reward),  # 显示reward的全部小数位
-                        'Action': action,
-                        'Terminal': terminal
-                    })
-                    total_pbar.set_postfix({
-                        'Epoch': epoch,
-                        'Epsilon': f'{self.epsilon:.4f}',
-                        'Memory': len(self.replay_memory)
-                    })
-                    
-                    
-                    # 检查是否达到最大步数
-                    if self.step_count >= self.t_max:
-                        break
-                
-                if terminal:
-                    break  
-                #检查是否达到最大步数
+            # 初始化状态 s_1 = x_1
+            current_state = shuffled_data[0:1]
+            if len(current_state.shape) == 3:
+                current_state = current_state.unsqueeze(1)  # 添加通道维度
+            current_state = current_state.float().to(self.device)
+            
+            # 修正通道顺序
+            if current_state.shape[1] != 3 and current_state.shape[-1] == 3:
+                current_state = current_state.permute(0, 3, 1, 2)  # NHWC -> NCHW
+            
+            # 进度条显示
+            episode_pbar = tqdm(
+                total=len(shuffled_data)-1,  # 最后一个样本没有next_state
+                desc=f"Episode {episode}", 
+                leave=False, 
+                unit="sample"
+            )
+            
+            # 内层循环: for t = 1 to T do (遍历所有样本)
+            for t in range(len(shuffled_data) - 1):
+                # 检查是否已达到最大步数
                 if self.step_count >= self.t_max:
                     break
+                
+                # 获取当前标签
+                current_label = shuffled_labels[t].item()
+                
+                # 根据ε-greedy策略选择动作 (Choose an action based on ε-greedy policy)
+                if random.random() < self.epsilon:
+                    action = random.randint(0, 1)  # 随机探索
+                else:
+                    with torch.no_grad():
+                        q_values = self.q_net(current_state)
+                    action = q_values.argmax().item()
+                
+                # 计算奖励和终止标志 (r_t, terminal_t = STEP(a_t, l_t))
+                reward, terminal = self.compute_reward(action, current_label)
+                
+                # 获取下一状态 (Set s_{t+1} = x_{t+1})
+                next_state = shuffled_data[t+1:t+2]
+                if len(next_state.shape) == 3:
+                    next_state = next_state.unsqueeze(1)
+                next_state = next_state.float().to(self.device)
+                
+                # 修正通道顺序
+                if next_state.shape[1] != 3 and next_state.shape[-1] == 3:
+                    next_state = next_state.permute(0, 3, 1, 2)
+                
+                # 存储经验到记忆库 (Store (s_t, a_t, r_t, s_{t+1}, terminal_t) to M)
+                self.replay_memory.append((
+                    current_state.squeeze(0).cpu().clone().detach(),
+                    action,
+                    reward,
+                    next_state.squeeze(0).cpu().clone().detach(),
+                    terminal
+                ))
+                
+                # 随机从记忆库中采样 (Randomly sample from M)
+                if len(self.replay_memory) >= self.batch_size:
+                    # 从记忆库中随机采样并进行学习
+                    self.replay_experience(update_target=False)  # 先不更新目标网络
+                    
+                    # 更新参数 φ := (1-η)φ + ηθ
+                    for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
+                        target_param.data.copy_(self.eta * param.data + (1.0 - self.eta) * target_param.data)
+                    
+                    self.step_count += 1
+                    total_pbar.update(1)
+                
+                # 更新进度条
+                episode_pbar.update(1)
+                episode_pbar.set_postfix({
+                    'Step': self.step_count,
+                    'Epsilon': f'{self.epsilon:.4f}',
+                    'Reward': f'{reward:.2f}',
+                    'Terminal': terminal
+                })
+                
+                # 如果是terminal状态，则终止当前episode (if terminal_t = True then break)
+                if terminal:
+                    break
+                    
+                # 设置当前状态为下一状态，继续循环
+                current_state = next_state
             
-            epoch_pbar.close()
+            episode_pbar.close()
             
-            # 检查是否达到最大步数
-            if self.step_count >= self.t_max:
-                break
+            # 显示episode信息
+            total_pbar.set_postfix({
+                'Episode': episode,
+                'Epsilon': f'{self.epsilon:.4f}',
+                'Memory': len(self.replay_memory)
+            })
         
         total_pbar.close()
-        print("Training completed!")
+        print("训练完成!")
     
     
 def main():
@@ -263,8 +275,8 @@ def main():
         print("训练模式: 将进行模型训练和评估")
         classifier = MyRL(input_shape, rho=0.0005)
         
-        # 开始训练，使用dataloader
-        classifier.train(train_loader)
+        # 开始训练，直接使用数据集对象而不是dataloader
+        classifier.train(dataset)
         
         # 保存模型
         torch.save(classifier.q_net.state_dict(), model_path)
