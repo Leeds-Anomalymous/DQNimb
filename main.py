@@ -201,17 +201,15 @@ class MyRL():
                     terminal
                 ))
                 
-                # 随机从记忆库中采样 (Randomly sample from M)
+                # 从记忆库中采样并学习(仅当记忆库足够大时)
                 if len(self.replay_memory) >= self.batch_size:
-                    # 从记忆库中随机采样并进行学习
-                    self.replay_experience(update_target=False)  # 先不更新目标网络
+                    # 根据terminal状态决定是否更新目标网络
+                    updated = self.replay_experience(update_target=not terminal)
                     
-                    # 更新参数 φ := (1-η)φ + ηθ
-                    for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
-                        target_param.data.copy_(self.eta * param.data + (1.0 - self.eta) * target_param.data)
-                    
-                    self.step_count += 1
-                    total_pbar.update(1)
+                    # 如果成功进行了经验回放，更新步数
+                    if updated:
+                        self.step_count += 1
+                        total_pbar.update(1)
                 
                 # 更新进度条
                 episode_pbar.update(1)
@@ -222,7 +220,7 @@ class MyRL():
                     'Terminal': terminal
                 })
                 
-                # 如果是terminal状态，则终止当前episode (if terminal_t = True then break)
+                # 如果是terminal状态，则终止当前episode
                 if terminal:
                     break
                     
