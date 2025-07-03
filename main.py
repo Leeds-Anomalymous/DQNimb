@@ -205,9 +205,6 @@ class MyRL():
                         'Memory': len(self.replay_memory)
                     })
                     
-                    # 检查终止条件 
-                    if terminal:
-                        break
                     
                     # 检查是否达到最大步数
                     if self.step_count >= self.t_max:
