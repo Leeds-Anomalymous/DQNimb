@@ -35,9 +35,21 @@ class Q_Net_image(nn.Module):
     def forward(self, x):
         # 确保输入和模型权重在同一设备
         x = x.to(self.fc1.weight.device)
-        # 确保输入是 4D 张量 [batch, channel, height, width]
-        if len(x.shape) == 3:  
+        
+        # 根据输入形状判断数据类型并进行相应处理
+        if len(x.shape) == 3 and x.shape[1] > 1 and x.shape[2] > 1:
+            # TBM数据形状为 [batch_size, len_window, feature_dim]
+            # 需要转换为 [batch_size, channels, len_window, feature_dim]
+            x = x.unsqueeze(1)  # 添加通道维度 [batch_size, 1, len_window, feature_dim]
+            x = x.repeat(1, 3, 1, 1)  # 复制为3通道 [batch_size, 3, len_window, feature_dim]
+        elif len(x.shape) == 3:  
+            # MNIST/CIFAR10数据 - 单个样本时
             x = x.unsqueeze(0)
+        elif len(x.shape) == 2:
+            # 扁平化的输入数据，重塑为所需的形状
+            x = x.unsqueeze(0).unsqueeze(0)  # [batch_size, 1, height*width]
+            # 如果需要，这里可以根据实际情况重塑数据
+        
         x = self.conv1(x)
         x = self.relu1(x)
         x = self.pool1(x)
