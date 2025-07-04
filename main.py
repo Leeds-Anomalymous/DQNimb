@@ -24,7 +24,7 @@ class MyRL():
         self.t_max = 120000
         self.eta = 0.05
         self.learning_rate = 0.00025
-        self.batch_size = 64
+        self.batch_size = 128
                 
         # 初始化双网络
         self.q_net = Q_Net_image(input_shape, output_dim=2) #在线网络，实时更新 - 二分类输出
@@ -48,7 +48,7 @@ class MyRL():
         self.step_count = 0
         self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max)
+        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max*0.6)
 
     def compute_reward(self, action, label):
         """
@@ -271,9 +271,19 @@ def main():
         # 开始训练，直接使用数据集对象而不是dataloader
         classifier.train(dataset)
         
+        # 生成带编号的模型文件名
+        base_name = 'dqn_classifier'
+        counter = 1
+        while True:
+            model_filename = f'{base_name}_{counter}.pth'
+            numbered_model_path = os.path.join('checkpoints', model_filename)
+            if not os.path.exists(numbered_model_path):
+                break
+            counter += 1
+        
         # 保存模型
-        torch.save(classifier.q_net.state_dict(), model_path)
-        print(f"模型已保存到 {model_path}")
+        torch.save(classifier.q_net.state_dict(), numbered_model_path)
+        print(f"模型已保存到 {numbered_model_path}")
         
         # 评估模型
         evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints')

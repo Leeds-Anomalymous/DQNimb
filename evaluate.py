@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+import pandas as pd
+from datetime import datetime
 import os
 
 def compute_gmean(y_true, y_pred):
@@ -112,23 +114,60 @@ def evaluate_model(model, test_loader, save_dir='./'):
     print(f"宏平均F1-score: {metrics['f1_macro']:.4f}")
     print(f"G-mean: {metrics['g_mean']:.4f}")
     
-    # 保存指标到文本文件
+    # 创建保存目录
     os.makedirs(save_dir, exist_ok=True)
-    metrics_path = os.path.join(save_dir, 'evaluation_metrics.txt')
-    with open(metrics_path, 'w') as f:
-        f.write("===== 模型评估结果 =====\n")
-        f.write(f"总体准确率: {metrics['accuracy']:.4f}\n")
-        f.write(f"少数类准确率: {metrics['class_0_acc']:.4f}\n")
-        f.write(f"多数类准确率: {metrics['class_1_acc']:.4f}\n")
-        f.write(f"少数类F1-score: {metrics['f1_minority']:.4f}\n")
-        f.write(f"多数类F1-score: {metrics['f1_majority']:.4f}\n")
-        f.write(f"宏平均F1-score: {metrics['f1_macro']:.4f}\n")
-        f.write(f"G-mean: {metrics['g_mean']:.4f}\n")
     
-    print(f"评估指标已保存到 {metrics_path}")
+    # 准备DataFrame数据
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    new_data = {
+        '评估时间': [current_time],
+        '总体准确率': [metrics['accuracy']],
+        '少数类准确率': [metrics['class_0_acc']],
+        '多数类准确率': [metrics['class_1_acc']],
+        '少数类F1-score': [metrics['f1_minority']],
+        '多数类F1-score': [metrics['f1_majority']],
+        '宏平均F1-score': [metrics['f1_macro']],
+        'G-mean': [metrics['g_mean']]
+    }
+    
+    new_df = pd.DataFrame(new_data)
+    
+    # Excel文件路径
+    excel_path = os.path.join(save_dir, 'evaluation_results.xlsx')
+    
+    # 检查是否存在现有文件
+    if os.path.exists(excel_path):
+        try:
+            # 读取现有数据（包含标题行）
+            existing_df = pd.read_excel(excel_path, header=0)
+            # 合并数据
+            combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+        except Exception as e:
+            print(f"读取现有Excel文件时出错: {e}")
+            print("将创建新文件")
+            combined_df = new_df
+    else:
+        combined_df = new_df
+    
+    # 保存到Excel文件（包含标题行）
+    try:
+        combined_df.to_excel(excel_path, index=False, header=True)
+        print(f"评估结果已保存到 {excel_path}")
+        print(f"当前文件包含 {len(combined_df)} 条评估记录")
+    except Exception as e:
+        print(f"保存Excel文件时出错: {e}")
     
     # 绘制混淆矩阵
-    cm_path = os.path.join(save_dir, 'confusion_matrix.png')
+    # 生成带编号的文件名
+    base_name = 'confusion_matrix'
+    counter = 1
+    while True:
+        cm_filename = f'{base_name}_{counter}.png'
+        cm_path = os.path.join(save_dir, cm_filename)
+        if not os.path.exists(cm_path):
+            break
+        counter += 1
+    
     plot_confusion_matrix(all_labels, all_preds, save_path=cm_path)
     
     return metrics
