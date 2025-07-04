@@ -237,7 +237,8 @@ class MyRL():
     
 def main():
     # 创建不平衡数据集
-    dataset = ImbalancedDataset(dataset_name="TBM_K", rho=0.001, batch_size=64)
+    dataset_name = "TBM_K_M"  # 提取数据集名称为变量
+    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=0.001, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()
@@ -259,8 +260,8 @@ def main():
             q_net.load_state_dict(torch.load(model_path))
             print(f"成功加载模型: {model_path}")
             
-            # 评估模型
-            evaluate_model(q_net, test_loader, save_dir='checkpoints')
+            # 评估模型，传递数据集名称
+            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name)
         else:
             print(f"错误: 未找到预训练模型 {model_path}")
             print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
@@ -285,8 +286,8 @@ def main():
         torch.save(classifier.q_net.state_dict(), numbered_model_path)
         print(f"模型已保存到 {numbered_model_path}")
         
-        # 评估模型
-        evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints')
+        # 评估模型，传递数据集名称
+        evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name)
 
 
 if __name__ == "__main__":

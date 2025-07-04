@@ -66,7 +66,7 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
     
     plt.show()
 
-def evaluate_model(model, test_loader, save_dir='./'):
+def evaluate_model(model, test_loader, save_dir='./', dataset_name=None):
     """
     评估模型性能并计算相关指标
     
@@ -74,6 +74,7 @@ def evaluate_model(model, test_loader, save_dir='./'):
         model: 训练好的模型
         test_loader: 测试数据加载器
         save_dir: 保存结果的目录
+        dataset_name: 数据集名称
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -127,7 +128,8 @@ def evaluate_model(model, test_loader, save_dir='./'):
         '少数类F1-score': [metrics['f1_minority']],
         '多数类F1-score': [metrics['f1_majority']],
         '宏平均F1-score': [metrics['f1_macro']],
-        'G-mean': [metrics['g_mean']]
+        'G-mean': [metrics['g_mean']],
+        '数据集名称': [dataset_name if dataset_name else 'Unknown']
     }
     
     new_df = pd.DataFrame(new_data)
