@@ -125,6 +125,51 @@ class ImbalancedDataset:
             test_set = self._create_dataset_from_arrays(test_data, test_labels)
             
             return train_set, test_set
+        elif self.dataset_name == "TBM_K_Noise":
+            # TBM轴承数据集（加噪声）- K类（2, 3, 5, 6, 8）为负类，0为正类
+            self.positive_classes = [0]
+            self.negative_classes = [2, 3, 5, 6, 8]
+            
+            print("正在加载TBM_K_Noise训练集...")
+            train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
+            
+            print("正在加载TBM_K_Noise测试集...")
+            test_data, test_labels = self._load_h5_file('./data/test_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
+            
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            
+            return train_set, test_set
+        elif self.dataset_name == "TBM_M_Noise":
+            # TBM轴承数据集（加噪声）- M类（1, 4, 7）为负类，0为正类
+            self.positive_classes = [0]
+            self.negative_classes = [1, 4, 7]
+            
+            print("正在加载TBM_M_Noise训练集...")
+            train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
+            
+            print("正在加载TBM_M_Noise测试集...")
+            test_data, test_labels = self._load_h5_file('./data/test_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
+            
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            
+            return train_set, test_set
+        elif self.dataset_name == "TBM_K_M_Noise":
+            # TBM轴承数据集（加噪声）- K类（2, 3, 5, 6, 8）和M类（1, 4, 7）为负类，0为正类
+            self.positive_classes = [0]
+            self.negative_classes = [1, 2, 3, 4, 5, 6, 7, 8]
+            
+            print("正在加载TBM_K_M_Noise训练集...")
+            train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
+            
+            print("正在加载TBM_K_M_Noise测试集...")
+            test_data, test_labels = self._load_h5_file('./data/test_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
+            
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            
+            return train_set, test_set
         else:
             raise ValueError(f"Unsupported dataset: {self.dataset_name}")
             
