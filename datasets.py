@@ -109,6 +109,22 @@ class ImbalancedDataset:
             test_set = self._create_dataset_from_arrays(test_data, test_labels)
             
             return train_set, test_set
+        elif self.dataset_name == "TBM_K_M":
+            # TBM轴承数据集 - K类（2, 3, 5, 6, 8）和M类（1, 4, 7）作为负类，0作为正类
+            self.positive_classes = [0]  # 健康类为正类
+            self.negative_classes = [1, 2, 3, 4, 5, 6, 7, 8]  # K类+M类为负类
+            
+            print("正在加载TBM_K_M训练集...")
+            train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard.h5')
+            
+            print("正在加载TBM_K_M测试集...")
+            test_data, test_labels = self._load_h5_file('./data/test_dataset0.3_1024_512_standard.h5')
+            
+            # 创建训练集和测试集
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            
+            return train_set, test_set
         else:
             raise ValueError(f"Unsupported dataset: {self.dataset_name}")
             
