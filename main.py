@@ -24,7 +24,7 @@ class MyRL():
         self.t_max = 120000
         self.eta = 0.05
         self.learning_rate = 0.00025
-        self.batch_size = 128
+        self.batch_size = 64
                 
         # 初始化双网络
         self.q_net = Q_Net_image(input_shape, output_dim=2) #在线网络，实时更新 - 二分类输出
@@ -48,7 +48,7 @@ class MyRL():
         self.step_count = 0
         self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max*0.6)
+        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max)
 
     def compute_reward(self, action, label):
         """
@@ -237,13 +237,13 @@ class MyRL():
     
 def main():
     # 创建不平衡数据集
-    dataset = ImbalancedDataset(dataset_name="mnist", rho=0.0005, batch_size=64)
+    dataset = ImbalancedDataset(dataset_name="TBM_K", rho=0.001, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
-    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
+    input_shape = (3, 28, 28)  # 输入形状: 通道, 高度, 宽度
     
     # 创建checkpoints目录（如果不存在）
     os.makedirs('checkpoints', exist_ok=True)
@@ -266,7 +266,7 @@ def main():
             print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
     else:
         print("训练模式: 将进行模型训练和评估")
-        classifier = MyRL(input_shape, rho=0.0005)
+        classifier = MyRL(input_shape, rho=0.001)
         
         # 开始训练，直接使用数据集对象而不是dataloader
         classifier.train(dataset)

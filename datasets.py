@@ -138,11 +138,15 @@ class ImbalancedDataset:
         # 获取标签数据 - 处理不同数据集的标签格式
         if isinstance(self.train_data.targets, list):
             train_labels = np.array(self.train_data.targets)
+        elif isinstance(self.train_data.targets, np.ndarray):
+            train_labels = self.train_data.targets
         else:
             train_labels = self.train_data.targets.numpy()
             
         if isinstance(self.test_data.targets, list):
             test_labels = np.array(self.test_data.targets)
+        elif isinstance(self.test_data.targets, np.ndarray):
+            test_labels = self.test_data.targets
         else:
             test_labels = self.test_data.targets.numpy()
         

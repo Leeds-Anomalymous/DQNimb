@@ -16,25 +16,31 @@ class Q_Net_image(nn.Module):
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         
-        # output_dim计算
-        conv_output_size = self._get_conv_output(input_shape)  
-        
-        # 全连接层
-        self.fc1 = nn.Linear(conv_output_size, 256)
+        # 先不初始化全连接层，在第一次前向传播时动态创建
+        self.fc1 = None
         self.relu3 = nn.ReLU()
-        self.fc2 = nn.Linear(256, output_dim)
+        self.fc2 = None
+        self.output_dim = output_dim
 
     def _get_conv_output(self, shape):
         x = torch.zeros(1, *shape) 
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        #print("Conv output size:", x.shape[1:])
         return int(torch.prod(torch.tensor(x.shape[1:]))) # 计算卷积输出维度
 
+    def _initialize_fc_layers(self, conv_output_size):
+        """动态初始化全连接层"""
+        if self.fc1 is None:
+            self.fc1 = nn.Linear(conv_output_size, 256)
+            self.fc2 = nn.Linear(256, self.output_dim)
+            # 确保新层在正确的设备上
+            device = next(self.parameters()).device
+            self.fc1 = self.fc1.to(device)
+            self.fc2 = self.fc2.to(device)
 
     def forward(self, x):
         # 确保输入和模型权重在同一设备
-        x = x.to(self.fc1.weight.device)
+        x = x.to(next(self.parameters()).device)
         
         # 根据输入形状判断数据类型并进行相应处理
         if len(x.shape) == 3 and x.shape[1] > 1 and x.shape[2] > 1:
@@ -48,16 +54,38 @@ class Q_Net_image(nn.Module):
         elif len(x.shape) == 2:
             # 扁平化的输入数据，重塑为所需的形状
             x = x.unsqueeze(0).unsqueeze(0)  # [batch_size, 1, height*width]
-            # 如果需要，这里可以根据实际情况重塑数据
         
         x = self.conv1(x)
         x = self.relu1(x)
-        x = self.pool1(x)
+        
+        # 智能池化策略：根据维度大小选择合适的池化方式
+        if x.shape[2] < 2 or x.shape[3] < 2:
+            # 维度太小时使用自适应池化，保证至少有1个输出
+            target_h = max(1, x.shape[2] // 2)
+            target_w = max(1, x.shape[3] // 2)
+            x = nn.AdaptiveMaxPool2d((target_h, target_w))(x)
+        else:
+            # 维度足够时使用普通池化（效率更高）
+            x = self.pool1(x)
+            
         x = self.conv2(x)
         x = self.relu2(x)
-        x = self.pool2(x)
+        
+        # 第二次池化使用相同策略
+        if x.shape[2] < 2 or x.shape[3] < 2:
+            target_h = max(1, x.shape[2] // 2)
+            target_w = max(1, x.shape[3] // 2)
+            x = nn.AdaptiveMaxPool2d((target_h, target_w))(x)
+        else:
+            x = self.pool2(x)
+            
         # 展平 + 全连接
-        x = x.reshape(x.size(0), -1) 
+        x = x.reshape(x.size(0), -1)
+        
+        # 动态初始化全连接层
+        if self.fc1 is None:
+            self._initialize_fc_layers(x.shape[1])
+        
         x = self.fc1(x)
         x = self.relu3(x)
         x = self.fc2(x)
