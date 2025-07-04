@@ -1,6 +1,7 @@
 import torch
 import torchvision
 import numpy as np
+import h5py
 from torch.utils.data import DataLoader, Subset, TensorDataset
 # from sklearn.model_selection import train_test_split
 
@@ -76,8 +77,55 @@ class ImbalancedDataset:
                 root='./data', train=False, download=True, transform=test_transform
             )
             return train_set, test_set
+        elif self.dataset_name == "TBM_K":
+            # TBM轴承数据集 - K类（2, 3, 5, 6, 8）作为负类，0作为正类
+            self.positive_classes = [0]  # 健康类为正类
+            self.negative_classes = [2, 3, 5, 6, 8]  # K类为负类
+            
+            print("正在加载TBM_K训练集...")
+            train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard.h5')
+            
+            print("正在加载TBM_K测试集...")
+            test_data, test_labels = self._load_h5_file('./data/test_dataset0.3_1024_512_standard.h5')
+            
+            # 创建训练集和测试集
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            
+            return train_set, test_set
+        elif self.dataset_name == "TBM_M":
+            # TBM轴承数据集 - M类（1, 4, 7）作为负类，0作为正类
+            self.positive_classes = [0]  # 健康类为正类
+            self.negative_classes = [1, 4, 7]  # M类为负类
+            
+            print("正在加载TBM_M训练集...")
+            train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard.h5')
+            
+            print("正在加载TBM_M测试集...")
+            test_data, test_labels = self._load_h5_file('./data/test_dataset0.3_1024_512_standard.h5')
+            
+            # 创建训练集和测试集
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            
+            return train_set, test_set
         else:
             raise ValueError(f"Unsupported dataset: {self.dataset_name}")
+            
+    def _load_h5_file(self, file_path):
+        """从h5文件中加载数据和标签"""
+        with h5py.File(file_path, 'r') as h5f:
+            data = h5f['data'][:]
+            labels = h5f['labels'][:]
+        return data, labels
+        
+    def _create_dataset_from_arrays(self, data, labels):
+        """从NumPy数组创建一个类似torchvision数据集的对象"""
+        # 创建一个具有类似torchvision数据集接口的对象
+        dataset = type('', (), {})()
+        dataset.data = data
+        dataset.targets = labels
+        return dataset
 
     def _preprocess_data(self):
         """

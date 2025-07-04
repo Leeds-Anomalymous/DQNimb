@@ -78,10 +78,7 @@ class MyRL():
         return reward, terminal
 
     def replay_experience(self, update_target=True):
-        """从经验回放缓冲区采样并训练网络"""
-        if len(self.replay_memory) < self.batch_size:
-            return False  # 返回False表示没有执行经验回放
-                
+        """从经验回放缓冲区采样并训练网络"""                
         # 随机采样一批经验
         batch = random.sample(self.replay_memory, self.batch_size)
         states, actions, rewards, next_states, terminals = zip(*batch)
@@ -110,6 +107,7 @@ class MyRL():
         self.optimizer.step()
             
         # 更新目标网络 (软更新)，只在update_target为True时更新
+        # 更新参数 φ := (1-η)φ + ηθ
         if update_target:
             for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
                 target_param.data.copy_(self.eta * param.data + (1.0 - self.eta) * target_param.data)
@@ -118,7 +116,6 @@ class MyRL():
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_decay
             
-        return True  # 返回True表示成功执行了经验回放
 
     def train(self, dataset):
         """
@@ -204,19 +201,17 @@ class MyRL():
                 # 从记忆库中采样并学习(仅当记忆库足够大时)
                 if len(self.replay_memory) >= self.batch_size:
                     # 根据terminal状态决定是否更新目标网络
-                    updated = self.replay_experience(update_target=not terminal)
-                    
-                    # 如果成功进行了经验回放，更新步数
-                    if updated:
-                        self.step_count += 1
-                        total_pbar.update(1)
+                    self.replay_experience(update_target=not terminal)
+
+                    self.step_count += 1
+                    total_pbar.update(1)
                 
                 # 更新进度条
                 episode_pbar.update(1)
                 episode_pbar.set_postfix({
                     'Step': self.step_count,
                     'Epsilon': f'{self.epsilon:.4f}',
-                    'Reward': f'{reward:.2f}',
+                    'Reward': f'{reward:.4f}',
                     'Terminal': terminal
                 })
                 
