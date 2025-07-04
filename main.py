@@ -107,6 +107,7 @@ class MyRL():
         self.optimizer.step()
             
         # 更新目标网络 (软更新)，只在update_target为True时更新
+        # 更新参数 φ := (1-η)φ + ηθ
         if update_target:
             for target_param, param in zip(self.target_net.parameters(), self.q_net.parameters()):
                 target_param.data.copy_(self.eta * param.data + (1.0 - self.eta) * target_param.data)
@@ -210,7 +211,7 @@ class MyRL():
                 episode_pbar.set_postfix({
                     'Step': self.step_count,
                     'Epsilon': f'{self.epsilon:.4f}',
-                    'Reward': f'{reward:.2f}',
+                    'Reward': f'{reward:.4f}',
                     'Terminal': terminal
                 })
                 
