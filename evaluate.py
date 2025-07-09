@@ -66,7 +66,7 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
     
     plt.show()
 
-def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None):
+def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None):
     """
     评估模型性能并计算相关指标
     
@@ -76,6 +76,7 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
         save_dir: 保存结果的目录
         dataset_name: 数据集名称
         training_ratio: 训练完成比例
+        rho: 不平衡率
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -131,7 +132,8 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
         '宏平均F1-score': [metrics['f1_macro']],
         'G-mean': [metrics['g_mean']],
         '数据集名称': [dataset_name if dataset_name else 'Unknown'],
-        '训练完成比例': [training_ratio if training_ratio is not None else 'Unknown']
+        '训练完成比例': [training_ratio if training_ratio is not None else 'Unknown'],
+        '不平衡率rho': [rho if rho is not None else 'Unknown']
     }
     
     new_df = pd.DataFrame(new_data)
@@ -162,14 +164,15 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
         print(f"保存Excel文件时出错: {e}")
     
     # 绘制混淆矩阵
-    # 生成带数据集名称、训练完成比例和序号的文件名
+    # 生成带数据集名称、不平衡率、训练完成比例和序号的文件名
     dataset_str = dataset_name if dataset_name else 'Unknown'
+    rho_str = f"rho{rho}" if rho is not None else 'rhoUnknown'
     ratio_str = f"{training_ratio}" if training_ratio is not None else 'Unknown'
     
     # 查找该数据集的最大序号
     counter = 1
     while True:
-        cm_filename = f'{dataset_str}_训练完成比{ratio_str}_第{counter}次.png'
+        cm_filename = f'{dataset_str}_{rho_str}_训练完成比{ratio_str}_第{counter}次.png'
         cm_path = os.path.join(save_dir, cm_filename)
         if not os.path.exists(cm_path):
             break
