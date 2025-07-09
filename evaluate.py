@@ -64,7 +64,8 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"混淆矩阵已保存到 {save_path}")
     
-    plt.show()
+    # 关闭图形以释放内存，不显示窗口
+    plt.close()
 
 def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None):
     """

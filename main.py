@@ -349,7 +349,7 @@ def main():
     train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
-    input_shape = (3, 28, 28)  # 输入形状: 通道, 高度, 宽度
+    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
     
     # 创建checkpoints目录（如果不存在）
     os.makedirs('checkpoints', exist_ok=True)
@@ -374,7 +374,7 @@ def main():
         print("训练模式: 将进行模型训练和评估")
         
         # 运行5次训练
-        num_runs = 5
+        num_runs = 2
         print(f"开始进行 {num_runs} 次训练...")
         
         for run in range(1, num_runs + 1):
