@@ -14,7 +14,7 @@ from Model import Q_Net_image
 from evaluate import evaluate_model  # 导入评估模块
 import pandas as pd
 
-
+#由于方差太小，此次数据用标准差
 def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs):
     """
     计算最近num_runs次训练的G-mean标准差并更新Excel文件
