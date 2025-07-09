@@ -6,20 +6,22 @@ from torch.utils.data import DataLoader, Subset, TensorDataset
 # from sklearn.model_selection import train_test_split
 
 class ImbalancedDataset:
-    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42, test_num=1000):
+    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42, test_num_positive=2000, test_num_negative=2000):
         """
         初始化数据集处理类
         :param dataset_name: 数据集名称 (e.g., "mnist", "cifar10")
         :param rho: 不平衡因子 (正类样本数 = rho * 负类样本数)
         :param batch_size: DataLoader 批次大小
         :param seed: 随机种子（确保可复现）
-        :param test_num: 测试集中每个类别的样本数量
+        :param test_num_positive: 测试集中正类的样本数量
+        :param test_num_negative: 测试集中负类的样本数量
         """
         self.dataset_name = dataset_name
         self.rho = rho
         self.batch_size = batch_size
         self.seed = seed
-        self.test_num = test_num
+        self.test_num_positive = test_num_positive
+        self.test_num_negative = test_num_negative
         torch.manual_seed(seed)
         np.random.seed(seed)
         
@@ -270,7 +272,7 @@ class ImbalancedDataset:
 
     def _balance_test_data(self, data, labels, positive_classes, negative_classes):
         """
-        平衡测试集数据，使正负类数量相等
+        平衡测试集数据，使正负类数量分别为指定值
         :param data: 原始测试数据
         :param labels: 原始测试标签
         :param positive_classes: 正类标签值列表
@@ -281,14 +283,13 @@ class ImbalancedDataset:
         positive_idx = np.where(np.isin(labels, positive_classes))[0]
         negative_idx = np.where(np.isin(labels, negative_classes))[0]
         
-        # 对正负类分别进行采样，使每类样本数为self.test_num
-        pos_sample_size = min(len(positive_idx), self.test_num)
-        neg_sample_size = min(len(negative_idx), self.test_num)
-        sample_size = min(pos_sample_size, neg_sample_size)  # 取两者中的较小值
+        # 对正负类分别进行采样，使用不同的采样数量
+        pos_sample_size = min(len(positive_idx), self.test_num_positive)
+        neg_sample_size = min(len(negative_idx), self.test_num_negative)
         
         # 随机采样
-        sampled_positive_idx = np.random.choice(positive_idx, size=sample_size, replace=False)
-        sampled_negative_idx = np.random.choice(negative_idx, size=sample_size, replace=False)
+        sampled_positive_idx = np.random.choice(positive_idx, size=pos_sample_size, replace=False)
+        sampled_negative_idx = np.random.choice(negative_idx, size=neg_sample_size, replace=False)
         
         # 合并采样后的正类和负类
         selected_idx = np.concatenate([sampled_positive_idx, sampled_negative_idx])
