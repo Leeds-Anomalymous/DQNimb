@@ -12,7 +12,106 @@ import os
 from datasets import ImbalancedDataset
 from Model import Q_Net_image
 from evaluate import evaluate_model  # 导入评估模块
+import pandas as pd
 
+
+def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs):
+    """
+    计算最近num_runs次训练的G-mean方差并更新Excel文件
+    
+    Args:
+        save_dir: 保存目录
+        dataset_name: 数据集名称
+        training_ratio: 训练完成比例
+        num_runs: 运行次数
+    """
+    excel_path = os.path.join(save_dir, 'evaluation_results.xlsx')
+    
+    if not os.path.exists(excel_path):
+        print(f"错误: 未找到Excel文件 {excel_path}")
+        return
+    
+    try:
+        # 读取现有数据
+        df = pd.read_excel(excel_path, header=0)
+        
+        # 筛选出最近num_runs次的相同数据集和训练比例的记录
+        filtered_df = df[
+            (df['数据集名称'] == dataset_name) & 
+            (df['训练完成比例'] == training_ratio)
+        ].tail(num_runs)
+        
+        if len(filtered_df) < num_runs:
+            print(f"警告: 只找到 {len(filtered_df)} 条记录，少于期望的 {num_runs} 次")
+        
+        # 提取G-mean值
+        g_mean_values = filtered_df['G-mean'].values
+        
+        # 计算方差
+        g_mean_variance = np.var(g_mean_values, ddof=1)  # 使用样本方差
+        
+        print(f"G-mean值: {g_mean_values}")
+        print(f"G-mean方差: {g_mean_variance:.6f}")
+        
+        # 添加方差列（如果不存在）
+        if 'G-mean方差' not in df.columns:
+            df['G-mean方差'] = None
+        
+        # 获取最近num_runs次记录的索引
+        recent_indices = filtered_df.index
+        
+        # 将方差值添加到这些行
+        for idx in recent_indices:
+            df.loc[idx, 'G-mean方差'] = g_mean_variance
+        
+        # 保存更新后的Excel文件
+        df.to_excel(excel_path, index=False, header=True)
+        print(f"G-mean方差已添加到Excel文件: {excel_path}")
+        
+        # 使用openpyxl进行单元格合并
+        try:
+            from openpyxl import load_workbook
+            from openpyxl.styles import Alignment
+            
+            # 加载工作簿
+            wb = load_workbook(excel_path)
+            ws = wb.active
+            
+            # 找到G-mean方差列的位置
+            variance_col = None
+            for col in range(1, ws.max_column + 1):
+                if ws.cell(row=1, column=col).value == 'G-mean方差':
+                    variance_col = col
+                    break
+            
+            if variance_col:
+                # 找到需要合并的行范围（最近num_runs次记录）
+                start_row = recent_indices[0] + 2  # +2 因为Excel从1开始，且有标题行
+                end_row = recent_indices[-1] + 2
+                
+                # 合并单元格
+                if len(recent_indices) > 1:
+                    merge_range = f"{ws.cell(row=start_row, column=variance_col).coordinate}:{ws.cell(row=end_row, column=variance_col).coordinate}"
+                    ws.merge_cells(merge_range)
+                    
+                    # 设置居中对齐
+                    merged_cell = ws.cell(row=start_row, column=variance_col)
+                    merged_cell.alignment = Alignment(horizontal='center', vertical='center')
+                    merged_cell.value = g_mean_variance
+                    
+                    print(f"已合并单元格 {merge_range} 并设置G-mean方差值")
+                
+                # 保存工作簿
+                wb.save(excel_path)
+                print("Excel文件更新完成，单元格已合并")
+            
+        except ImportError:
+            print("警告: 未安装openpyxl，无法进行单元格合并")
+        except Exception as e:
+            print(f"单元格合并时出错: {e}")
+    
+    except Exception as e:
+        print(f"处理Excel文件时出错: {e}")
 
 class MyRL():
     def __init__(self, input_shape, rho=0.01):
@@ -25,6 +124,7 @@ class MyRL():
         self.eta = 0.05
         self.learning_rate = 0.00025
         self.batch_size = 64
+        self.ratio = 1
                 
         # 初始化双网络
         self.q_net = Q_Net_image(input_shape, output_dim=2) #在线网络，实时更新 - 二分类输出
@@ -48,7 +148,7 @@ class MyRL():
         self.step_count = 0
         self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max)
+        self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max*self.ratio)
 
     def compute_reward(self, action, label):
         """
@@ -235,9 +335,106 @@ class MyRL():
         print("训练完成!")
     
     
+def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs):
+    """
+    计算最近num_runs次训练的G-mean方差并更新Excel文件
+    
+    Args:
+        save_dir: 保存目录
+        dataset_name: 数据集名称
+        training_ratio: 训练完成比例
+        num_runs: 运行次数
+    """
+    excel_path = os.path.join(save_dir, 'evaluation_results.xlsx')
+    
+    if not os.path.exists(excel_path):
+        print(f"错误: 未找到Excel文件 {excel_path}")
+        return
+    
+    try:
+        # 读取现有数据
+        df = pd.read_excel(excel_path, header=0)
+        
+        # 筛选出最近num_runs次的相同数据集和训练比例的记录
+        filtered_df = df[
+            (df['数据集名称'] == dataset_name) & 
+            (df['训练完成比例'] == training_ratio)
+        ].tail(num_runs)
+        
+        if len(filtered_df) < num_runs:
+            print(f"警告: 只找到 {len(filtered_df)} 条记录，少于期望的 {num_runs} 次")
+        
+        # 提取G-mean值
+        g_mean_values = filtered_df['G-mean'].values
+        
+        # 计算方差
+        g_mean_variance = np.var(g_mean_values, ddof=1)  # 使用样本方差
+        
+        print(f"G-mean值: {g_mean_values}")
+        print(f"G-mean方差: {g_mean_variance:.6f}")
+        
+        # 添加方差列（如果不存在）
+        if 'G-mean方差' not in df.columns:
+            df['G-mean方差'] = None
+        
+        # 获取最近num_runs次记录的索引
+        recent_indices = filtered_df.index
+        
+        # 将方差值添加到这些行
+        for idx in recent_indices:
+            df.loc[idx, 'G-mean方差'] = g_mean_variance
+        
+        # 保存更新后的Excel文件
+        df.to_excel(excel_path, index=False, header=True)
+        print(f"G-mean方差已添加到Excel文件: {excel_path}")
+        
+        # 使用openpyxl进行单元格合并
+        try:
+            from openpyxl import load_workbook
+            from openpyxl.styles import Alignment
+            
+            # 加载工作簿
+            wb = load_workbook(excel_path)
+            ws = wb.active
+            
+            # 找到G-mean方差列的位置
+            variance_col = None
+            for col in range(1, ws.max_column + 1):
+                if ws.cell(row=1, column=col).value == 'G-mean方差':
+                    variance_col = col
+                    break
+            
+            if variance_col:
+                # 找到需要合并的行范围（最近num_runs次记录）
+                start_row = recent_indices[0] + 2  # +2 因为Excel从1开始，且有标题行
+                end_row = recent_indices[-1] + 2
+                
+                # 合并单元格
+                if len(recent_indices) > 1:
+                    merge_range = f"{ws.cell(row=start_row, column=variance_col).coordinate}:{ws.cell(row=end_row, column=variance_col).coordinate}"
+                    ws.merge_cells(merge_range)
+                    merged_cell = ws.cell(row=start_row, column=variance_col)
+                    merged_cell.alignment = Alignment(horizontal='center', vertical='center')
+                    merged_cell.value = g_mean_variance
+                    
+                    print(f"已合并单元格 {merge_range} 并设置G-mean方差值")
+                
+                # 保存工作簿
+                wb.save(excel_path)
+                print("Excel文件更新完成，单元格已合并")
+            
+        except ImportError:
+            print("警告: 未安装openpyxl，无法进行单元格合并")
+        except Exception as e:
+            print(f"单元格合并时出错: {e}")
+    
+    except Exception as e:
+        print(f"处理Excel文件时出错: {e}")
+
+
 def main():
     # 创建不平衡数据集
-    dataset_name = "TBM_K_M"  # 提取数据集名称为变量
+    dataset_name = "TBM_K_Noise"  # 提取数据集名称为变量
     dataset = ImbalancedDataset(dataset_name=dataset_name, rho=0.001, batch_size=64)
         
     # 直接获取训练和测试的dataloader
@@ -267,27 +464,44 @@ def main():
             print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
     else:
         print("训练模式: 将进行模型训练和评估")
-        classifier = MyRL(input_shape, rho=0.001)
         
-        # 开始训练，直接使用数据集对象而不是dataloader
-        classifier.train(dataset)
+        # 运行5次训练
+        num_runs = 5
+        print(f"开始进行 {num_runs} 次训练...")
         
-        # 生成带编号的模型文件名
-        base_name = 'dqn_classifier'
-        counter = 1
-        while True:
-            model_filename = f'{base_name}_{counter}.pth'
+        for run in range(1, num_runs + 1):
+            print(f"\n{'='*50}")
+            print(f"开始第 {run} 次训练")
+            print(f"{'='*50}")
+            
+            # 每次创建新的分类器实例
+            classifier = MyRL(input_shape, rho=0.001)
+            
+            # 开始训练，直接使用数据集对象而不是dataloader
+            classifier.train(dataset)
+            
+            # 使用MyRL类中的ratio参数
+            training_ratio = classifier.ratio
+            
+            # 生成带数据集名称、训练完成比例和序号的模型文件名
+            model_filename = f'{dataset_name}_训练完成比{training_ratio}_第{run}次.pth'
             numbered_model_path = os.path.join('checkpoints', model_filename)
-            if not os.path.exists(numbered_model_path):
-                break
-            counter += 1
+            
+            # 保存模型
+            torch.save(classifier.q_net.state_dict(), numbered_model_path)
+            print(f"模型已保存到 {numbered_model_path}")
+            
+            # 评估模型，传递数据集名称和训练完成比例
+            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio)
+            
+            print(f"第 {run} 次训练完成")
         
-        # 保存模型
-        torch.save(classifier.q_net.state_dict(), numbered_model_path)
-        print(f"模型已保存到 {numbered_model_path}")
+        print(f"\n{'='*50}")
+        print("所有训练完成，开始计算G-mean方差...")
+        print(f"{'='*50}")
         
-        # 评估模型，传递数据集名称
-        evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name)
+        # 计算G-mean方差并更新Excel文件
+        calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs)
 
 
 if __name__ == "__main__":
