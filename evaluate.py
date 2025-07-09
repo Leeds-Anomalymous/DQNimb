@@ -66,7 +66,7 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
     
     plt.show()
 
-def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None):
+def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None):
     """
     评估模型性能并计算相关指标
     
@@ -77,6 +77,7 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
         dataset_name: 数据集名称
         training_ratio: 训练完成比例
         rho: 不平衡率
+        dataset_obj: 数据集对象，用于获取样本数量统计
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -120,20 +121,44 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
     # 创建保存目录
     os.makedirs(save_dir, exist_ok=True)
     
+    # 获取数据集统计信息
+    train_positive_count = 0
+    train_negative_count = 0
+    test_positive_count = 0
+    test_negative_count = 0
+    
+    if dataset_obj is not None:
+        try:
+            # 获取类别分布
+            class_distribution = dataset_obj.get_class_distribution()
+            train_positive_count = int(class_distribution['train'][0])  # 正类(标签0)数量
+            train_negative_count = int(class_distribution['train'][1])  # 负类(标签1)数量
+            test_positive_count = int(class_distribution['test'][0])    # 正类(标签0)数量
+            test_negative_count = int(class_distribution['test'][1])    # 负类(标签1)数量
+            
+            print(f"训练集 - 正类样本数: {train_positive_count}, 负类样本数: {train_negative_count}")
+            print(f"测试集 - 正类样本数: {test_positive_count}, 负类样本数: {test_negative_count}")
+        except Exception as e:
+            print(f"获取数据集统计信息时出错: {e}")
+    
     # 准备DataFrame数据
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_data = {
         '评估时间': [current_time],
+        '数据集名称': [dataset_name if dataset_name else 'Unknown'],
+        '训练完成比例': [training_ratio if training_ratio is not None else 'Unknown'],
+        '不平衡率rho': [rho if rho is not None else 'Unknown'],
+        '训练集正类样本数': [train_positive_count],
+        '训练集负类样本数': [train_negative_count],
+        '测试集正类样本数': [test_positive_count],
+        '测试集负类样本数': [test_negative_count],
         '总体准确率': [metrics['accuracy']],
         '少数类准确率': [metrics['class_0_acc']],
         '多数类准确率': [metrics['class_1_acc']],
         '少数类F1-score': [metrics['f1_minority']],
         '多数类F1-score': [metrics['f1_majority']],
         '宏平均F1-score': [metrics['f1_macro']],
-        'G-mean': [metrics['g_mean']],
-        '数据集名称': [dataset_name if dataset_name else 'Unknown'],
-        '训练完成比例': [training_ratio if training_ratio is not None else 'Unknown'],
-        '不平衡率rho': [rho if rho is not None else 'Unknown']
+        'G-mean': [metrics['g_mean']]
     }
     
     new_df = pd.DataFrame(new_data)

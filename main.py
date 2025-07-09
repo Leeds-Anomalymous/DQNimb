@@ -338,9 +338,12 @@ class MyRL():
     
     
 def main():
+    # 统一设置参数
+    dataset_name = "mnist"  # 提取数据集名称为变量
+    rho = 0.02  # 不平衡率，统一设置
+    
     # 创建不平衡数据集
-    dataset_name = "TBM_K_Noise"  # 提取数据集名称为变量
-    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=0.001, batch_size=64)
+    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()
@@ -363,7 +366,7 @@ def main():
             print(f"成功加载模型: {model_path}")
             
             # 评估模型，传递数据集名称
-            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, rho=0.001)
+            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, rho=rho, dataset_obj=dataset)
         else:
             print(f"错误: 未找到预训练模型 {model_path}")
             print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
@@ -380,7 +383,7 @@ def main():
             print(f"{'='*50}")
             
             # 每次创建新的分类器实例
-            classifier = MyRL(input_shape, rho=0.001)
+            classifier = MyRL(input_shape, rho=rho)
             
             # 开始训练，直接使用数据集对象而不是dataloader
             classifier.train(dataset)
@@ -388,8 +391,8 @@ def main():
             # 使用MyRL类中的ratio参数
             training_ratio = classifier.ratio
             
-            # 获取不平衡率rho
-            rho = classifier.rho
+            # 使用统一设置的rho值（不从classifier中重新获取）
+            # rho = classifier.rho  # 注释掉这行，使用函数开头统一设置的rho
             
             # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
             model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
@@ -400,7 +403,7 @@ def main():
             print(f"模型已保存到 {numbered_model_path}")
             
             # 评估模型，传递数据集名称、训练完成比例和不平衡率
-            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho)
+            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset)
             
             print(f"第 {run} 次训练完成")
         
