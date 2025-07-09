@@ -79,6 +79,28 @@ class ImbalancedDataset:
                 root='./data', train=False, download=True, transform=test_transform
             )
             return train_set, test_set
+        elif self.dataset_name == "fashion_mnist":
+            # Fashion-MNIST支持
+            # 正类：0 (T-shirt/top), 2 (Pullover)
+            # 负类：1 (Trouser), 3 (Dress)
+            self.positive_classes = [0, 2]  # T-shirt/top, Pullover
+            self.negative_classes = [1, 3]  # Trouser, Dress
+            
+            transform = torchvision.transforms.Compose([
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize((0.2860,), (0.3530,))  # Fashion-MNIST的均值和标准差
+            ])
+            
+            print("正在下载Fashion-MNIST训练集...")
+            train_set = torchvision.datasets.FashionMNIST(
+                root='./data', train=True, download=True, transform=transform
+            )
+            
+            print("正在下载Fashion-MNIST测试集...")
+            test_set = torchvision.datasets.FashionMNIST(
+                root='./data', train=False, download=True, transform=transform
+            )
+            return train_set, test_set
         elif self.dataset_name == "TBM_K":
             # TBM轴承数据集 - K类（2, 3, 5, 6, 8）作为正类，0作为负类
             self.positive_classes = [2, 3, 5, 6, 8]  # K类为正类

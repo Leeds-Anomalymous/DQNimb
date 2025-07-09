@@ -114,6 +114,11 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
     
     except Exception as e:
         print(f"处理Excel文件时出错: {e}")
+        print("可能的原因:")
+        print("1. Excel文件正在被其他程序打开，请关闭Excel")
+        print("2. 文件权限不足")
+        print("3. 磁盘空间不足")
+        print("请检查后重新运行程序")
 
 class MyRL():
     def __init__(self, input_shape, rho=0.01):
@@ -374,38 +379,51 @@ def main():
         print("训练模式: 将进行模型训练和评估")
         
         # 运行5次训练
-        num_runs = 2
+        num_runs = 5
         print(f"开始进行 {num_runs} 次训练...")
         
         for run in range(1, num_runs + 1):
-            print(f"\n{'='*50}")
-            print(f"开始第 {run} 次训练")
-            print(f"{'='*50}")
-            
-            # 每次创建新的分类器实例
-            classifier = MyRL(input_shape, rho=rho)
-            
-            # 开始训练，直接使用数据集对象而不是dataloader
-            classifier.train(dataset)
-            
-            # 使用MyRL类中的ratio参数
-            training_ratio = classifier.ratio
-            
-            # 使用统一设置的rho值（不从classifier中重新获取）
-            # rho = classifier.rho  # 注释掉这行，使用函数开头统一设置的rho
-            
-            # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
-            model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
-            numbered_model_path = os.path.join('checkpoints', model_filename)
-            
-            # 保存模型
-            torch.save(classifier.q_net.state_dict(), numbered_model_path)
-            print(f"模型已保存到 {numbered_model_path}")
-            
-            # 评估模型，传递数据集名称、训练完成比例和不平衡率
-            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset)
-            
-            print(f"第 {run} 次训练完成")
+            try:
+                print(f"\n{'='*50}")
+                print(f"开始第 {run} 次训练")
+                print(f"{'='*50}")
+                
+                # 每次创建新的分类器实例
+                classifier = MyRL(input_shape, rho=rho)
+                
+                # 开始训练，直接使用数据集对象而不是dataloader
+                classifier.train(dataset)
+                
+                # 使用MyRL类中的ratio参数
+                training_ratio = classifier.ratio
+                
+                # 使用统一设置的rho值（不从classifier中重新获取）
+                # rho = classifier.rho  # 注释掉这行，使用函数开头统一设置的rho
+                
+                # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
+                model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
+                numbered_model_path = os.path.join('checkpoints', model_filename)
+                
+                # 保存模型
+                torch.save(classifier.q_net.state_dict(), numbered_model_path)
+                print(f"模型已保存到 {numbered_model_path}")
+                
+                # 评估模型，传递数据集名称、训练完成比例和不平衡率
+                evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset)
+                
+                print(f"第 {run} 次训练完成")
+                
+                # 清理GPU内存（如果使用GPU）
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                
+            except Exception as e:
+                print(f"第 {run} 次训练时出错: {e}")
+                print(f"跳过第 {run} 次训练，继续下一次...")
+                # 清理GPU内存
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                continue
         
         print(f"\n{'='*50}")
         print("所有训练完成，开始计算G-mean方差...")
