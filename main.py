@@ -15,16 +15,15 @@ from evaluate import evaluate_model  # 导入评估模块
 import pandas as pd
 
 
-def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho):
+def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs):
     """
-    计算最近num_runs次训练的G-mean方差并更新Excel文件
+    计算最近num_runs次训练的G-mean标准差并更新Excel文件
     
     Args:
         save_dir: 保存目录
         dataset_name: 数据集名称
         training_ratio: 训练完成比例
         num_runs: 运行次数
-        rho: 不平衡率
     """
     excel_path = os.path.join(save_dir, 'evaluation_results.xlsx')
     
@@ -39,8 +38,7 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
         # 筛选出最近num_runs次的相同数据集和训练比例的记录
         filtered_df = df[
             (df['数据集名称'] == dataset_name) & 
-            (df['训练完成比例'] == training_ratio) &
-            (df['不平衡率rho'] == rho)
+            (df['训练完成比例'] == training_ratio)
         ].tail(num_runs)
         
         if len(filtered_df) < num_runs:
@@ -49,26 +47,26 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
         # 提取G-mean值
         g_mean_values = filtered_df['G-mean'].values
         
-        # 计算方差
-        g_mean_variance = np.var(g_mean_values, ddof=1)  # 使用样本方差
+        # 计算标准差
+        g_mean_std = np.std(g_mean_values, ddof=1)  # 使用样本标准差
         
         print(f"G-mean值: {g_mean_values}")
-        print(f"G-mean方差: {g_mean_variance:.6f}")
+        print(f"G-mean标准差: {g_mean_std:.6f}")
         
-        # 添加方差列（如果不存在）
-        if 'G-mean方差' not in df.columns:
-            df['G-mean方差'] = None
+        # 添加标准差列（如果不存在）
+        if 'G-mean标准差' not in df.columns:
+            df['G-mean标准差'] = None
         
         # 获取最近num_runs次记录的索引
         recent_indices = filtered_df.index
         
-        # 将方差值添加到这些行
+        # 将标准差值添加到这些行
         for idx in recent_indices:
-            df.loc[idx, 'G-mean方差'] = g_mean_variance
+            df.loc[idx, 'G-mean标准差'] = g_mean_std
         
         # 保存更新后的Excel文件
         df.to_excel(excel_path, index=False, header=True)
-        print(f"G-mean方差已添加到Excel文件: {excel_path}")
+        print(f"G-mean标准差已添加到Excel文件: {excel_path}")
         
         # 使用openpyxl进行单元格合并
         try:
@@ -79,29 +77,29 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
             wb = load_workbook(excel_path)
             ws = wb.active
             
-            # 找到G-mean方差列的位置
-            variance_col = None
+            # 找到G-mean标准差列的位置
+            std_col = None
             for col in range(1, ws.max_column + 1):
-                if ws.cell(row=1, column=col).value == 'G-mean方差':
-                    variance_col = col
+                if ws.cell(row=1, column=col).value == 'G-mean标准差':
+                    std_col = col
                     break
             
-            if variance_col:
+            if std_col:
                 # 找到需要合并的行范围（最近num_runs次记录）
                 start_row = recent_indices[0] + 2  # +2 因为Excel从1开始，且有标题行
                 end_row = recent_indices[-1] + 2
                 
                 # 合并单元格
                 if len(recent_indices) > 1:
-                    merge_range = f"{ws.cell(row=start_row, column=variance_col).coordinate}:{ws.cell(row=end_row, column=variance_col).coordinate}"
+                    merge_range = f"{ws.cell(row=start_row, column=std_col).coordinate}:{ws.cell(row=end_row, column=std_col).coordinate}"
                     ws.merge_cells(merge_range)
                     
                     # 设置居中对齐
-                    merged_cell = ws.cell(row=start_row, column=variance_col)
+                    merged_cell = ws.cell(row=start_row, column=std_col)
                     merged_cell.alignment = Alignment(horizontal='center', vertical='center')
-                    merged_cell.value = g_mean_variance
+                    merged_cell.value = g_mean_std
                     
-                    print(f"已合并单元格 {merge_range} 并设置G-mean方差值")
+                    print(f"已合并单元格 {merge_range} 并设置G-mean标准差值")
                 
                 # 保存工作簿
                 wb.save(excel_path)
@@ -114,11 +112,6 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
     
     except Exception as e:
         print(f"处理Excel文件时出错: {e}")
-        print("可能的原因:")
-        print("1. Excel文件正在被其他程序打开，请关闭Excel")
-        print("2. 文件权限不足")
-        print("3. 磁盘空间不足")
-        print("请检查后重新运行程序")
 
 class MyRL():
     def __init__(self, input_shape, rho=0.01):
@@ -343,18 +336,15 @@ class MyRL():
     
     
 def main():
-    # 统一设置参数
-    dataset_name = "mnist"  # 提取数据集名称为变量
-    rho = 0.02  # 不平衡率，统一设置
-    
     # 创建不平衡数据集
-    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
+    dataset_name = "TBM_K_Noise"  # 提取数据集名称为变量
+    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=0.001, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
-    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
+    input_shape = (3, 28, 28)  # 输入形状: 通道, 高度, 宽度
     
     # 创建checkpoints目录（如果不存在）
     os.makedirs('checkpoints', exist_ok=True)
@@ -371,7 +361,7 @@ def main():
             print(f"成功加载模型: {model_path}")
             
             # 评估模型，传递数据集名称
-            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, rho=rho, dataset_obj=dataset)
+            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, rho=0.001)
         else:
             print(f"错误: 未找到预训练模型 {model_path}")
             print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
@@ -383,54 +373,52 @@ def main():
         print(f"开始进行 {num_runs} 次训练...")
         
         for run in range(1, num_runs + 1):
-            try:
-                print(f"\n{'='*50}")
-                print(f"开始第 {run} 次训练")
-                print(f"{'='*50}")
-                
-                # 每次创建新的分类器实例
-                classifier = MyRL(input_shape, rho=rho)
-                
-                # 开始训练，直接使用数据集对象而不是dataloader
-                classifier.train(dataset)
-                
-                # 使用MyRL类中的ratio参数
-                training_ratio = classifier.ratio
-                
-                # 使用统一设置的rho值（不从classifier中重新获取）
-                # rho = classifier.rho  # 注释掉这行，使用函数开头统一设置的rho
-                
-                # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
-                model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
-                numbered_model_path = os.path.join('checkpoints', model_filename)
-                
-                # 保存模型
-                torch.save(classifier.q_net.state_dict(), numbered_model_path)
-                print(f"模型已保存到 {numbered_model_path}")
-                
-                # 评估模型，传递数据集名称、训练完成比例和不平衡率
-                evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset)
-                
-                print(f"第 {run} 次训练完成")
-                
-                # 清理GPU内存（如果使用GPU）
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                
-            except Exception as e:
-                print(f"第 {run} 次训练时出错: {e}")
-                print(f"跳过第 {run} 次训练，继续下一次...")
-                # 清理GPU内存
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                continue
+            print(f"\n{'='*50}")
+            print(f"开始第 {run} 次训练")
+            print(f"{'='*50}")
+            
+            # 每次创建新的分类器实例
+            classifier = MyRL(input_shape, rho=0.001)
+            
+            # 开始训练，直接使用数据集对象而不是dataloader
+            classifier.train(dataset)
+            
+            # 使用MyRL类中的ratio参数
+            training_ratio = classifier.ratio
+            
+            # 获取不平衡率rho
+            rho = classifier.rho
+            
+            # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
+            model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
+            numbered_model_path = os.path.join('checkpoints', model_filename)
+            
+            # 保存模型
+            torch.save(classifier.q_net.state_dict(), numbered_model_path)
+            print(f"模型已保存到 {numbered_model_path}")
+            
+            # 评估模型，传递数据集名称、训练完成比例和不平衡率
+            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho)
+            
+            print(f"第 {run} 次训练完成")
         
         print(f"\n{'='*50}")
-        print("所有训练完成，开始计算G-mean方差...")
+        print("所有训练完成，开始计算G-mean标准差...")
         print(f"{'='*50}")
         
-        # 计算G-mean方差并更新Excel文件
+        # 计算G-mean标准差并更新Excel文件
         calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
+
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
