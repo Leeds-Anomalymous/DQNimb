@@ -6,18 +6,20 @@ from torch.utils.data import DataLoader, Subset, TensorDataset
 # from sklearn.model_selection import train_test_split
 
 class ImbalancedDataset:
-    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42):
+    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42, test_num=1000):
         """
         初始化数据集处理类
         :param dataset_name: 数据集名称 (e.g., "mnist", "cifar10")
         :param rho: 不平衡因子 (正类样本数 = rho * 负类样本数)
         :param batch_size: DataLoader 批次大小
         :param seed: 随机种子（确保可复现）
+        :param test_num: 测试集中每个类别的样本数量
         """
         self.dataset_name = dataset_name
         self.rho = rho
         self.batch_size = batch_size
         self.seed = seed
+        self.test_num = test_num
         torch.manual_seed(seed)
         np.random.seed(seed)
         
@@ -78,9 +80,9 @@ class ImbalancedDataset:
             )
             return train_set, test_set
         elif self.dataset_name == "TBM_K":
-            # TBM轴承数据集 - K类（2, 3, 5, 6, 8）作为负类，0作为正类
-            self.positive_classes = [0]  # 健康类为正类
-            self.negative_classes = [2, 3, 5, 6, 8]  # K类为负类
+            # TBM轴承数据集 - K类（2, 3, 5, 6, 8）作为正类，0作为负类
+            self.positive_classes = [2, 3, 5, 6, 8]  # K类为正类
+            self.negative_classes = [0]  # 健康类为负类
             
             print("正在加载TBM_K训练集...")
             train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard.h5')
@@ -94,9 +96,9 @@ class ImbalancedDataset:
             
             return train_set, test_set
         elif self.dataset_name == "TBM_M":
-            # TBM轴承数据集 - M类（1, 4, 7）作为负类，0作为正类
-            self.positive_classes = [0]  # 健康类为正类
-            self.negative_classes = [1, 4, 7]  # M类为负类
+            # TBM轴承数据集 - M类（1, 4, 7）作为正类，0作为负类
+            self.positive_classes = [1, 4, 7]  # M类为正类
+            self.negative_classes = [0]  # 健康类为负类
             
             print("正在加载TBM_M训练集...")
             train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard.h5')
@@ -110,9 +112,9 @@ class ImbalancedDataset:
             
             return train_set, test_set
         elif self.dataset_name == "TBM_K_M":
-            # TBM轴承数据集 - K类（2, 3, 5, 6, 8）和M类（1, 4, 7）作为负类，0作为正类
-            self.positive_classes = [0]  # 健康类为正类
-            self.negative_classes = [1, 2, 3, 4, 5, 6, 7, 8]  # K类+M类为负类
+            # TBM轴承数据集 - K类（2, 3, 5, 6, 8）和M类（1, 4, 7）作为正类，0作为负类
+            self.positive_classes = [1, 2, 3, 4, 5, 6, 7, 8]  # K类+M类为正类
+            self.negative_classes = [0]  # 健康类为负类
             
             print("正在加载TBM_K_M训练集...")
             train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard.h5')
@@ -126,9 +128,9 @@ class ImbalancedDataset:
             
             return train_set, test_set
         elif self.dataset_name == "TBM_K_Noise":
-            # TBM轴承数据集（加噪声）- K类（2, 3, 5, 6, 8）为负类，0为正类
-            self.positive_classes = [0]
-            self.negative_classes = [2, 3, 5, 6, 8]
+            # TBM轴承数据集（加噪声）- K类（2, 3, 5, 6, 8）为正类，0为负类
+            self.positive_classes = [2, 3, 5, 6, 8]
+            self.negative_classes = [0]
             
             print("正在加载TBM_K_Noise训练集...")
             train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
@@ -141,9 +143,9 @@ class ImbalancedDataset:
             
             return train_set, test_set
         elif self.dataset_name == "TBM_M_Noise":
-            # TBM轴承数据集（加噪声）- M类（1, 4, 7）为负类，0为正类
-            self.positive_classes = [0]
-            self.negative_classes = [1, 4, 7]
+            # TBM轴承数据集（加噪声）- M类（1, 4, 7）为正类，0为负类
+            self.positive_classes = [1, 4, 7]
+            self.negative_classes = [0]
             
             print("正在加载TBM_M_Noise训练集...")
             train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
@@ -156,9 +158,9 @@ class ImbalancedDataset:
             
             return train_set, test_set
         elif self.dataset_name == "TBM_K_M_Noise":
-            # TBM轴承数据集（加噪声）- K类（2, 3, 5, 6, 8）和M类（1, 4, 7）为负类，0为正类
-            self.positive_classes = [0]
-            self.negative_classes = [1, 2, 3, 4, 5, 6, 7, 8]
+            # TBM轴承数据集（加噪声）- K类（2, 3, 5, 6, 8）和M类（1, 4, 7）为正类，0为负类
+            self.positive_classes = [1, 2, 3, 4, 5, 6, 7, 8]
+            self.negative_classes = [0]
             
             print("正在加载TBM_K_M_Noise训练集...")
             train_data, train_labels = self._load_h5_file('./data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_ratio0.001_head10000.h5')
@@ -195,6 +197,8 @@ class ImbalancedDataset:
           - 正类（少数类）标签 -> 0
           - 负类（多数类）标签 -> 1
           - 正类样本数降至 rho * N（N=负类原始样本数）
+        测试集：
+          - 正类和负类样本数目相同，都等于self.test_num
         """
         # 获取标签数据 - 处理不同数据集的标签格式
         if isinstance(self.train_data.targets, list):
@@ -222,24 +226,60 @@ class ImbalancedDataset:
         
         self.train_data = TensorDataset(selected_data, torch.tensor(remapped_labels))
         
-        # 处理测试集（仅重映射标签，不降采样）
+        # 处理测试集（平衡采样，使两类数量相等）
         # 只选择正类和负类标签的数据
         valid_indices = np.where(np.isin(test_labels, self.positive_classes) | np.isin(test_labels, self.negative_classes))[0]
         test_data = self.test_data.data[valid_indices]
         test_labels = test_labels[valid_indices]
         
-        remapped_test_labels = np.where(
-            np.isin(test_labels, self.positive_classes), 0, 1
+        # 平衡采样测试集
+        balanced_test_data, balanced_test_labels = self._balance_test_data(
+            test_data, test_labels, self.positive_classes, self.negative_classes
         )
         
         # 确保测试数据是torch张量
-        if not isinstance(test_data, torch.Tensor):
-            test_data = torch.tensor(test_data)
+        if not isinstance(balanced_test_data, torch.Tensor):
+            balanced_test_data = torch.tensor(balanced_test_data)
             
         self.test_data = TensorDataset(
-            test_data, 
-            torch.tensor(remapped_test_labels)
+            balanced_test_data, 
+            torch.tensor(balanced_test_labels)
         )
+
+    def _balance_test_data(self, data, labels, positive_classes, negative_classes):
+        """
+        平衡测试集数据，使正负类数量相等
+        :param data: 原始测试数据
+        :param labels: 原始测试标签
+        :param positive_classes: 正类标签值列表
+        :param negative_classes: 负类标签值列表
+        :return: (平衡后的数据, 重映射后的标签)
+        """
+        # 分离正/负类索引
+        positive_idx = np.where(np.isin(labels, positive_classes))[0]
+        negative_idx = np.where(np.isin(labels, negative_classes))[0]
+        
+        # 对正负类分别进行采样，使每类样本数为self.test_num
+        pos_sample_size = min(len(positive_idx), self.test_num)
+        neg_sample_size = min(len(negative_idx), self.test_num)
+        sample_size = min(pos_sample_size, neg_sample_size)  # 取两者中的较小值
+        
+        # 随机采样
+        sampled_positive_idx = np.random.choice(positive_idx, size=sample_size, replace=False)
+        sampled_negative_idx = np.random.choice(negative_idx, size=sample_size, replace=False)
+        
+        # 合并采样后的正类和负类
+        selected_idx = np.concatenate([sampled_positive_idx, sampled_negative_idx])
+        np.random.shuffle(selected_idx)  # 打乱顺序
+        
+        # 创建新数据集（标签映射：正类->0, 负类->1）
+        selected_data = data[selected_idx]
+        selected_labels = labels[selected_idx]
+        remapped_labels = np.where(
+            np.isin(selected_labels, positive_classes), 0, 1  # 少数类=0, 多数类=1
+        )
+        
+        return selected_data, remapped_labels
 
     def _downsample_data(self, data, labels, positive_classes, negative_classes):
         """
