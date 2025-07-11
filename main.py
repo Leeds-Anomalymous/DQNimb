@@ -362,7 +362,7 @@ def main():
         
         # 加载预训练模型
         if os.path.exists(model_path):
-            q_net.load_state_dict(torch.load(model_path))
+            q_net.load_state_dict(torch.load(model_path), strict=False)
             print(f"成功加载模型: {model_path}")
             
             # 评估模型，传递数据集名称
