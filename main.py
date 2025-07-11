@@ -15,7 +15,7 @@ from evaluate import evaluate_model  # 导入评估模块
 import pandas as pd
 
 #由于方差太小，此次数据用标准差
-def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs):
+def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho):
     """
     计算最近num_runs次训练的G-mean标准差并更新Excel文件
     
@@ -24,6 +24,7 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
         dataset_name: 数据集名称
         training_ratio: 训练完成比例
         num_runs: 运行次数
+        rho: 不平衡率
     """
     excel_path = os.path.join(save_dir, 'evaluation_results.xlsx')
     
@@ -35,10 +36,11 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
         # 读取现有数据
         df = pd.read_excel(excel_path, header=0)
         
-        # 筛选出最近num_runs次的相同数据集和训练比例的记录
+        # 筛选出最近num_runs次的相同数据集、训练比例和不平衡率的记录
         filtered_df = df[
             (df['数据集名称'] == dataset_name) & 
-            (df['训练完成比例'] == training_ratio)
+            (df['训练完成比例'] == training_ratio) &
+            (df['不平衡率'] == rho)
         ].tail(num_runs)
         
         if len(filtered_df) < num_runs:
@@ -336,9 +338,12 @@ class MyRL():
     
     
 def main():
-    # 创建不平衡数据集
+    # 统一设置参数
     dataset_name = "TBM_K_Noise"  # 提取数据集名称为变量
-    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=0.001, batch_size=64)
+    rho = 0.001  # 统一设置不平衡率参数
+    
+    # 创建不平衡数据集
+    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()
@@ -361,7 +366,7 @@ def main():
             print(f"成功加载模型: {model_path}")
             
             # 评估模型，传递数据集名称
-            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, rho=0.001)
+            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, rho=rho)
         else:
             print(f"错误: 未找到预训练模型 {model_path}")
             print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
@@ -378,16 +383,13 @@ def main():
             print(f"{'='*50}")
             
             # 每次创建新的分类器实例
-            classifier = MyRL(input_shape, rho=0.001)
+            classifier = MyRL(input_shape, rho=rho)
             
             # 开始训练，直接使用数据集对象而不是dataloader
             classifier.train(dataset)
             
             # 使用MyRL类中的ratio参数
             training_ratio = classifier.ratio
-            
-            # 获取不平衡率rho
-            rho = classifier.rho
             
             # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
             model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
