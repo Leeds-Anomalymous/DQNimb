@@ -67,7 +67,7 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
     # 关闭图形以释放内存，不显示窗口
     plt.close()
 
-def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None):
+def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None, run_number=None):
     """
     评估模型性能并计算相关指标
     
@@ -79,6 +79,7 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
         training_ratio: 训练完成比例
         rho: 不平衡率
         dataset_obj: 数据集对象，用于获取样本数量统计
+        run_number: 运行次数编号，用于文件命名
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -195,14 +196,10 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
     rho_str = f"rho{rho}" if rho is not None else 'rhoUnknown'
     ratio_str = f"{training_ratio}" if training_ratio is not None else 'Unknown'
     
-    # 查找该数据集的最大序号
-    counter = 1
-    while True:
-        cm_filename = f'{dataset_str}_{rho_str}_训练完成比{ratio_str}_第{counter}次.png'
-        cm_path = os.path.join(save_dir, cm_filename)
-        if not os.path.exists(cm_path):
-            break
-        counter += 1
+
+    
+    cm_filename = f'{dataset_str}_{rho_str}_训练完成比{ratio_str}_第{run_number}次.png'
+    cm_path = os.path.join(save_dir, cm_filename)
     
     plot_confusion_matrix(all_labels, all_preds, save_path=cm_path)
     
