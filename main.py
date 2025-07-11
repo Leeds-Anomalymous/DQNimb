@@ -344,9 +344,7 @@ def main():
     
     # 创建不平衡数据集
     dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
-        
-    # 直接获取训练和测试的dataloader
-    train_loader, test_loader = dataset.get_dataloaders()
+    
     
     # 初始化DQN分类器
     input_shape = (3, 28, 28)  # 输入形状: 通道, 高度, 宽度
@@ -384,7 +382,7 @@ def main():
                 
                 # 评估模型，传递数据集名称、训练完成比例和不平衡率
                 evaluate_model(q_net, test_loader, save_dir='checkpoints', 
-                              dataset_name=dataset_name, training_ratio=training_ratio, rho=rho)
+                              dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset)
             else:
                 print(f"警告: 未找到模型文件 {model_path}")
         
@@ -423,7 +421,7 @@ def main():
             print(f"模型已保存到 {numbered_model_path}")
             
             # 评估模型，传递数据集名称、训练完成比例和不平衡率
-            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho)
+            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset)
             
             print(f"第 {run} 次训练完成")
         
