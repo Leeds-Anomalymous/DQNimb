@@ -40,7 +40,7 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
         filtered_df = df[
             (df['数据集名称'] == dataset_name) & 
             (df['训练完成比例'] == training_ratio) &
-            (df['不平衡率'] == rho)
+            (df['不平衡率rho'] == rho)
         ].tail(num_runs)
         
         if len(filtered_df) < num_runs:
@@ -356,20 +356,43 @@ def main():
     model_path = os.path.join('checkpoints', 'dqn_classifier.pth')
     
     if TEST_ONLY:
-        print("测试模式: 仅加载模型并评估")
+        print("测试模式: 加载多个模型并分别评估")
+        
+        # 设置与训练时相同的参数
+        num_runs = 5
+        training_ratio = 1  # 使用与训练时相同的ratio
+        
         # 创建模型但不训练
         q_net = Q_Net_image(input_shape, output_dim=2)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        q_net.to(device)
         
-        # 加载预训练模型
-        if os.path.exists(model_path):
-            q_net.load_state_dict(torch.load(model_path), strict=False)
-            print(f"成功加载模型: {model_path}")
+        # 循环加载每次训练保存的模型并评估
+        for run in range(1, num_runs + 1):
+            # 生成模型文件名，与训练时相同的命名方式
+            model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
+            model_path = os.path.join('checkpoints', model_filename)
             
-            # 评估模型，传递数据集名称
-            evaluate_model(q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, rho=rho)
-        else:
-            print(f"错误: 未找到预训练模型 {model_path}")
-            print("请先将 TEST_ONLY 设置为 False 进行训练，或确保模型文件存在")
+            if os.path.exists(model_path):
+                print(f"\n{'='*50}")
+                print(f"加载并评估第 {run} 个模型: {model_filename}")
+                print(f"{'='*50}")
+                
+                # 加载模型
+                q_net.load_state_dict(torch.load(model_path), strict=False)
+                print(f"成功加载模型: {model_path}")
+                
+                # 评估模型，传递数据集名称、训练完成比例和不平衡率
+                evaluate_model(q_net, test_loader, save_dir='checkpoints', 
+                              dataset_name=dataset_name, training_ratio=training_ratio, rho=rho)
+            else:
+                print(f"警告: 未找到模型文件 {model_path}")
+        
+        # 计算所有模型的G-mean标准差并更新Excel文件
+        print(f"\n{'='*50}")
+        print("所有模型评估完成，开始计算G-mean标准差...")
+        print(f"{'='*50}")
+        calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
     else:
         print("训练模式: 将进行模型训练和评估")
         
