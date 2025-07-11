@@ -344,7 +344,9 @@ def main():
     
     # 创建不平衡数据集
     dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
-    
+        
+    # 直接获取训练和测试的dataloader
+    train_loader, test_loader = dataset.get_dataloaders()
     
     # 初始化DQN分类器
     input_shape = (3, 28, 28)  # 输入形状: 通道, 高度, 宽度
@@ -377,7 +379,7 @@ def main():
                 print(f"{'='*50}")
                 
                 # 加载模型
-                q_net.load_state_dict(torch.load(model_path), strict=False)
+                q_net.load_state_dict(torch.load(model_path, weights_only=True), strict=False)
                 print(f"成功加载模型: {model_path}")
                 
                 # 评估模型，传递数据集名称、训练完成比例和不平衡率
