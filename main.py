@@ -379,7 +379,7 @@ def main():
                 print(f"{'='*50}")
                 
                 # 加载模型
-                q_net.load_state_dict(torch.load(model_path, weights_only=True), strict=False)
+                q_net.load_state_dict(torch.load(model_path), strict=False)
                 print(f"成功加载模型: {model_path}")
                 
                 # 评估模型，传递数据集名称、训练完成比例和不平衡率
