@@ -49,21 +49,48 @@ def compute_metrics(y_true, y_pred):
         'g_mean': g_mean
     }
 
-def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None):
+def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None, dataset_name=None, 
+                         training_ratio=None, rho=None, train_pos_count=None, train_neg_count=None,
+                         test_pos_count=None, test_neg_count=None):
     """绘制混淆矩阵"""
     cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(10, 8))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 xticklabels=['Minority (0)', 'Majority (1)'],
                 yticklabels=['Minority (0)', 'Majority (1)'])
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     
-    # 在标题中包含模型名称
+    # 构建详细的标题
+    title_parts = []
+    
+    # 基础标题
     if model_type:
-        plt.title(f'Confusion Matrix - {model_type}')
+        title_parts.append(f'Confusion Matrix - {model_type}')
     else:
-        plt.title('Confusion Matrix')
+        title_parts.append('Confusion Matrix')
+    
+    # 添加详细信息
+    if dataset_name:
+        title_parts.append(f'Dataset: {dataset_name}')
+    if training_ratio is not None:
+        title_parts.append(f'Training Ratio: {training_ratio}')
+    if rho is not None:
+        title_parts.append(f'Imbalance Ratio (rho): {rho}')
+    
+    # 添加样本数信息
+    sample_info = []
+    if train_pos_count is not None and train_neg_count is not None:
+        sample_info.append(f'Train: Pos={train_pos_count}, Neg={train_neg_count}')
+    if test_pos_count is not None and test_neg_count is not None:
+        sample_info.append(f'Test: Pos={test_pos_count}, Neg={test_neg_count}')
+    
+    if sample_info:
+        title_parts.extend(sample_info)
+    
+    # 组合标题，使用换行符分隔
+    full_title = '\n'.join(title_parts)
+    plt.title(full_title, fontsize=8, pad=20)
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -96,13 +123,33 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
     
     with torch.no_grad():
         for data, labels in test_loader:
-            # 确保数据是正确的形状和类型
-            if len(data.shape) == 3:  # (N, 28, 28)
-                data = data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
-            # 修正通道顺序（如果需要）
-            if data.shape[1] != 3 and data.shape[-1] == 3:
-                data = data.permute(0, 3, 1, 2)  # NHWC -> NCHW
-            data = data.float().to(device)
+            # 根据模型类型进行不同的数据预处理
+            if 'TBM' in str(dataset_name) or model_type == 'TBM_conv1d':
+                # 打印数据形状以便调试
+                # print(f"原始数据形状: {data.shape}")
+                
+                # 针对TBM数据的处理
+                # 如果数据是4D，需要调整为3D [batch_size, channels, length]
+                if len(data.shape) == 4:  # [batch_size, 1, 3, 1024]
+                    data = data.squeeze(1)  # 移除额外的维度，变为[batch_size, 3, 1024]
+                
+                # 如果维度顺序是[batch_size, length, channels]，需要转置
+                if data.shape[1] != 3 and data.shape[2] == 3:
+                    data = data.transpose(1, 2)  # 转换为[batch_size, channels, length]
+                
+                # 打印处理后的形状
+                # print(f"处理后数据形状: {data.shape}")
+                
+                data = data.float().to(device)
+            else:
+                # 图像数据需要添加通道维度
+                if len(data.shape) == 3:  # (N, 28, 28)
+                    data = data.unsqueeze(1)  # 添加通道维度 -> (N, 1, 28, 28)
+                # 修正通道顺序（如果需要）
+                if data.shape[1] != 3 and data.shape[-1] == 3:
+                    data = data.permute(0, 3, 1, 2)  # NHWC -> NCHW
+                data = data.float().to(device)
+            
             outputs = model(data)
             _, predicted = torch.max(outputs, 1)
             
@@ -207,6 +254,9 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
     cm_filename = f'{dataset_str}_{model_str}_{rho_str}_训练完成比{ratio_str}_第{run_number}次.png'
     cm_path = os.path.join(save_dir, cm_filename)
     
-    plot_confusion_matrix(all_labels, all_preds, save_path=cm_path, model_type=model_type)
+    plot_confusion_matrix(all_labels, all_preds, save_path=cm_path, model_type=model_type,
+                         dataset_name=dataset_name, training_ratio=training_ratio, rho=rho,
+                         train_pos_count=train_positive_count, train_neg_count=train_negative_count,
+                         test_pos_count=test_positive_count, test_neg_count=test_negative_count)
     
     return metrics

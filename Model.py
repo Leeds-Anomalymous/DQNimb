@@ -120,9 +120,9 @@ class TBM_conv1d(nn.Module):
         self.fc2 = nn.Linear(256, output_dim)
 
     def forward(self, x):
-        # 输入形状为 [batch_size, len_window, feature_dim]
-        # 需要转置为 [batch_size, feature_dim, len_window] 以适应Conv1d
-        x = x.transpose(1, 2)
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:  # 如果输入是[batch, len_window, feature_dim]
+            x = x.transpose(1, 2)  # 转换为[batch, feature_dim, len_window]
         
         # 第一个卷积块
         x = self.conv1(x)

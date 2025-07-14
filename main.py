@@ -1,4 +1,4 @@
-TEST_ONLY = False  # 设置为 True 时只进行评估，不进行训练
+TEST_ONLY = True  # 设置为 True 时只进行评估，不进行训练
 
 import random
 import numpy as np
@@ -159,6 +159,9 @@ class MyRL():
         self.epsilon_min = 0.01
         self.epsilon_decay = (self.epsilon - self.epsilon_min) / (self.t_max*self.ratio)
 
+        # 存储模型类型，用于后续数据预处理
+        self.model_type = model_type
+
     def compute_reward(self, action, label):
         """
         实现论文中的奖励函数 (Section 3.2)
@@ -198,7 +201,16 @@ class MyRL():
         rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device).unsqueeze(1)
         next_states = torch.stack(next_states).to(self.device)
         terminals = torch.tensor(terminals, dtype=torch.bool, device=self.device).unsqueeze(1)
-            
+        
+        # 对于TBM模型，确保数据维度正确
+        if self.model_type == 'TBM_conv1d':
+            # TBM模型期望输入形状为[batch, channels, length]
+            # 而我们的数据形状为[batch, length, channels]
+            # 所以需要转置为[batch, channels, length]
+            if states.shape[1] != 3 and states.shape[2] == 3:  # 如果是[batch, length, channels]
+                states = states.transpose(1, 2)  # 转为[batch, channels, length]
+                next_states = next_states.transpose(1, 2)
+
         # 计算当前Q值
         current_q = self.q_net(states).gather(1, actions)
             
@@ -234,7 +246,7 @@ class MyRL():
         """
         # 获取完整数据集
         train_data, train_labels, _, _ = dataset.get_full_dataset()
-        
+       # print(f"训练数据集维度: {train_data.shape}, 标签维度: {train_labels.shape}") torch.Size([14136, 1024, 3])
         self.step_count = 0
         episode = 0
         
@@ -252,13 +264,20 @@ class MyRL():
             
             # 初始化状态 s_1 = x_1
             current_state = shuffled_data[0:1]
-            if len(current_state.shape) == 3:
-                current_state = current_state.unsqueeze(1)  # 添加通道维度
-            current_state = current_state.float().to(self.device)
             
-            # 修正通道顺序
-            if current_state.shape[1] != 3 and current_state.shape[-1] == 3:
-                current_state = current_state.permute(0, 3, 1, 2)  # NHWC -> NCHW
+            # 根据模型类型进行不同的数据预处理
+            if self.model_type == 'TBM_conv1d':
+                # TBM数据不需要添加通道维度，直接使用原始形状
+                current_state = current_state.float().to(self.device)
+            else:
+                # 图像数据需要添加通道维度
+                if len(current_state.shape) == 3:
+                    current_state = current_state.unsqueeze(1)  # 添加通道维度
+                current_state = current_state.float().to(self.device)
+                
+                # 修正通道顺序
+                if current_state.shape[1] != 3 and current_state.shape[-1] == 3:
+                    current_state = current_state.permute(0, 3, 1, 2)  # NHWC -> NCHW
             
             # 进度条显示
             episode_pbar = tqdm(
@@ -290,16 +309,24 @@ class MyRL():
                 
                 # 获取下一状态 (Set s_{t+1} = x_{t+1})
                 next_state = shuffled_data[t+1:t+2]
-                if len(next_state.shape) == 3:
-                    next_state = next_state.unsqueeze(1)
-                next_state = next_state.float().to(self.device)
                 
-                # 修正通道顺序
-                if next_state.shape[1] != 3 and next_state.shape[-1] == 3:
-                    next_state = next_state.permute(0, 3, 1, 2)
+                # 根据模型类型进行不同的数据预处理
+                if self.model_type == 'TBM_conv1d':
+                    # TBM数据不需要添加通道维度
+                    next_state = next_state.float().to(self.device)
+                else:
+                    # 图像数据需要添加通道维度
+                    if len(next_state.shape) == 3:
+                        next_state = next_state.unsqueeze(1)
+                    next_state = next_state.float().to(self.device)
+                    
+                    # 修正通道顺序
+                    if next_state.shape[1] != 3 and next_state.shape[-1] == 3:
+                        next_state = next_state.permute(0, 3, 1, 2)
                 
                 # 存储经验到记忆库 (Store (s_t, a_t, r_t, s_{t+1}, terminal_t) to M)
                 self.replay_memory.append((
+                    # 直接存储原始形状，不进行维度转换
                     current_state.squeeze(0).cpu().clone().detach(),
                     action,
                     reward,
@@ -384,8 +411,8 @@ def get_model_config(dataset_name):
 
 def main():
     # 统一设置参数
-    dataset_name = "fashion_mnist"  # 提取数据集名称为变量
-    rho = 0.005  # 统一设置不平衡率参数
+    dataset_name = "TBM_K_M_Noise"  # 提取数据集名称为变量
+    rho = 0.01  # 统一设置不平衡率参数
     
     # 获取模型配置
     model_config = get_model_config(dataset_name)
@@ -439,9 +466,10 @@ def main():
                 q_net.load_state_dict(torch.load(model_path), strict=False)
                 print(f"成功加载模型: {model_path}")
                 
-                # 评估模型，传递数据集名称、训练完成比例和不平衡率
+                # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
                 evaluate_model(q_net, test_loader, save_dir='checkpoints', 
-                              dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset,run_number=run)
+                              dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
+                              dataset_obj=dataset, run_number=run, model_type=model_type)
             else:
                 print(f"警告: 未找到模型文件 {model_path}")
         
@@ -480,12 +508,14 @@ def main():
             torch.save(classifier.q_net.state_dict(), numbered_model_path)
             print(f"模型已保存到 {numbered_model_path}")
             
-            # 评估模型，传递数据集名称、训练完成比例和不平衡率
-            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, dataset_obj=dataset,run_number=run)
+            # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
+            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', 
+                          dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
+                          dataset_obj=dataset, run_number=run, model_type=model_type)
             
             print(f"第 {run} 次训练完成")
         
-        print(f"\n{'='*50}")
+        print(f"\n{'='*50}")    
         print("所有训练完成，开始计算G-mean标准差...")
         print(f"{'='*50}")
         
