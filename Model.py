@@ -91,3 +91,55 @@ class Q_Net_image(nn.Module):
         x = self.fc2(x)
         
         return x
+
+class TBM_conv1d(nn.Module):
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # Layer 1
+        ''''output_length = (1024 + 2*2 - 5) // 1 + 1
+              = (1028 - 5) // 1 + 1
+              = 1023 + 1
+              = 1024'''
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Layer 2
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=5, stride=1, padding=2)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小
+        conv_output_size = (len_window // 4) * 32  # 经过两次池化层，长度变为原来的1/4
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu3 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 输入形状为 [batch_size, len_window, feature_dim]
+        # 需要转置为 [batch_size, feature_dim, len_window] 以适应Conv1d
+        x = x.transpose(1, 2)
+        
+        # 第一个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 第二个卷积块
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu3(x)
+        x = self.fc2(x)
+        
+        return x
