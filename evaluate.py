@@ -49,7 +49,7 @@ def compute_metrics(y_true, y_pred):
         'g_mean': g_mean
     }
 
-def plot_confusion_matrix(y_true, y_pred, save_path=None):
+def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None):
     """绘制混淆矩阵"""
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
@@ -58,7 +58,12 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
                 yticklabels=['Minority (0)', 'Majority (1)'])
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
-    plt.title('Confusion Matrix')
+    
+    # 在标题中包含模型名称
+    if model_type:
+        plt.title(f'Confusion Matrix - {model_type}')
+    else:
+        plt.title('Confusion Matrix')
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -67,7 +72,7 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None):
     # 关闭图形以释放内存，不显示窗口
     plt.close()
 
-def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None, run_number=None):
+def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None, run_number=None, model_type=None):
     """
     评估模型性能并计算相关指标
     
@@ -80,6 +85,7 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
         rho: 不平衡率
         dataset_obj: 数据集对象，用于获取样本数量统计
         run_number: 运行次数编号，用于文件命名
+        model_type: 模型类型名称
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -148,6 +154,7 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
     new_data = {
         '评估时间': [current_time],
         '数据集名称': [dataset_name if dataset_name else 'Unknown'],
+        '模型类型': [model_type if model_type else 'Unknown'],
         '训练完成比例': [training_ratio if training_ratio is not None else 'Unknown'],
         '不平衡率rho': [rho if rho is not None else 'Unknown'],
         '训练集正类样本数': [train_positive_count],
@@ -191,16 +198,15 @@ def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, trainin
         print(f"保存Excel文件时出错: {e}")
     
     # 绘制混淆矩阵
-    # 生成带数据集名称、不平衡率、训练完成比例和序号的文件名
+    # 生成带数据集名称、模型类型、不平衡率、训练完成比例和序号的文件名
     dataset_str = dataset_name if dataset_name else 'Unknown'
+    model_str = model_type if model_type else 'Unknown'
     rho_str = f"rho{rho}" if rho is not None else 'rhoUnknown'
     ratio_str = f"{training_ratio}" if training_ratio is not None else 'Unknown'
     
-
-    
-    cm_filename = f'{dataset_str}_{rho_str}_训练完成比{ratio_str}_第{run_number}次.png'
+    cm_filename = f'{dataset_str}_{model_str}_{rho_str}_训练完成比{ratio_str}_第{run_number}次.png'
     cm_path = os.path.join(save_dir, cm_filename)
     
-    plot_confusion_matrix(all_labels, all_preds, save_path=cm_path)
+    plot_confusion_matrix(all_labels, all_preds, save_path=cm_path, model_type=model_type)
     
     return metrics

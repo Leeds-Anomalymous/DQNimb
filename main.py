@@ -10,7 +10,7 @@ from collections import deque
 from tqdm import tqdm
 import os
 from datasets import ImbalancedDataset
-from Model import Q_Net_image
+from Model import Q_Net_image, TBM_conv1d  # 导入两个模型类
 from evaluate import evaluate_model  # 导入评估模块
 import pandas as pd
 
@@ -116,7 +116,7 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
         print(f"处理Excel文件时出错: {e}")
 
 class MyRL():
-    def __init__(self, input_shape, rho=0.01):
+    def __init__(self, input_shape, rho=0.01, model_type='Q_Net_image'):
 
         self.discount_factor = 0.1
         self.mem_size = 50000
@@ -127,10 +127,17 @@ class MyRL():
         self.learning_rate = 0.00025
         self.batch_size = 64
         self.ratio = 1
-                
-        # 初始化双网络
-        self.q_net = Q_Net_image(input_shape, output_dim=2) #在线网络，实时更新 - 二分类输出
-        self.target_net = Q_Net_image(input_shape, output_dim=2) #目标网络，用来软更新 - 二分类输出
+        
+        # 根据模型类型选择网络
+        if model_type == 'Q_Net_image':
+            self.q_net = Q_Net_image(input_shape, output_dim=2)
+            self.target_net = Q_Net_image(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d':
+            self.q_net = TBM_conv1d(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d(input_shape, output_dim=2)
+        else:
+            raise ValueError(f"不支持的模型类型: {model_type}")
+        
         self.target_net.load_state_dict(self.q_net.state_dict())  # 同步参数
 
         # 优化器
@@ -337,19 +344,63 @@ class MyRL():
         print("训练完成!")
     
     
+def get_model_config(dataset_name):
+    """
+    根据数据集名称返回相应的模型配置
+    
+    Args:
+        dataset_name: 数据集名称
+        
+    Returns:
+        dict: 包含模型类型和输入形状的配置
+    """
+    # 图像数据集配置
+    image_datasets = {
+        'mnist': {'model_type': 'Q_Net_image', 'input_shape': (1, 28, 28)},
+        'fashion_mnist': {'model_type': 'Q_Net_image', 'input_shape': (1, 28, 28)},
+        'cifar10': {'model_type': 'Q_Net_image', 'input_shape': (3, 32, 32)},
+        'cifar100': {'model_type': 'Q_Net_image', 'input_shape': (3, 32, 32)},
+    }
+    
+    # TBM数据集配置 - 使用1D卷积模型
+    tbm_datasets = {
+        'TBM_K': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},  # (len_window, feature_dim)
+        'TBM_M': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+    }
+    
+    # 合并配置
+    all_configs = {**image_datasets, **tbm_datasets}
+    
+    if dataset_name in all_configs:
+        return all_configs[dataset_name]
+    else:
+        # 默认使用图像模型
+        print(f"警告: 未找到数据集 {dataset_name} 的配置，使用默认图像模型配置")
+        return {'model_type': 'Q_Net_image', 'input_shape': (1, 28, 28)}
+
 def main():
     # 统一设置参数
     dataset_name = "fashion_mnist"  # 提取数据集名称为变量
     rho = 0.005  # 统一设置不平衡率参数
+    
+    # 获取模型配置
+    model_config = get_model_config(dataset_name)
+    model_type = model_config['model_type']
+    input_shape = model_config['input_shape']
+    
+    print(f"数据集: {dataset_name}")
+    print(f"选择的模型类型: {model_type}")
+    print(f"输入形状: {input_shape}")
     
     # 创建不平衡数据集
     dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
         
     # 直接获取训练和测试的dataloader
     train_loader, test_loader = dataset.get_dataloaders()
-    
-    # 初始化DQN分类器
-    input_shape = (1, 28, 28)  # 输入形状: 通道, 高度, 宽度
     
     # 创建checkpoints目录（如果不存在）
     os.makedirs('checkpoints', exist_ok=True)
@@ -362,8 +413,14 @@ def main():
         num_runs = 5
         training_ratio = 1  # 使用与训练时相同的ratio
         
-        # 创建模型但不训练
-        q_net = Q_Net_image(input_shape, output_dim=2)
+        # 根据模型类型创建相应的模型
+        if model_type == 'Q_Net_image':
+            q_net = Q_Net_image(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d':
+            q_net = TBM_conv1d(input_shape, output_dim=2)
+        else:
+            raise ValueError(f"不支持的模型类型: {model_type}")
+            
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         q_net.to(device)
         
@@ -403,10 +460,11 @@ def main():
         for run in range(1, num_runs + 1):
             print(f"\n{'='*50}")
             print(f"开始第 {run} 次训练")
+            print(f"使用模型类型: {model_type}")
             print(f"{'='*50}")
             
-            # 每次创建新的分类器实例
-            classifier = MyRL(input_shape, rho=rho)
+            # 每次创建新的分类器实例，传入模型类型
+            classifier = MyRL(input_shape, rho=rho, model_type=model_type)
             
             # 开始训练，直接使用数据集对象而不是dataloader
             classifier.train(dataset)
