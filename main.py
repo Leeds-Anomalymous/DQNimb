@@ -1,4 +1,4 @@
-TEST_ONLY = True  # 设置为 True 时只进行评估，不进行训练
+TEST_ONLY = False  # 设置为 True 时只进行评估，不进行训练
 
 import random
 import numpy as np
@@ -410,122 +410,129 @@ def get_model_config(dataset_name):
         return {'model_type': 'Q_Net_image', 'input_shape': (1, 28, 28)}
 
 def main():
-    # 统一设置参数
-    dataset_name = "TBM_K_M_Noise"  # 提取数据集名称为变量
-    rho = 0.01  # 统一设置不平衡率参数
+    # 创建TBM数据集字典，每个数据集对应的rho值为0.01
+    tbm_datasets = {
+        'TBM_K_M': 0.01,
+        'TBM_K_M_Noise': 0.01,
+        'TBM_K_M': 1,
+        'TBM_K_M_Noise': 1
+    }
     
-    # 获取模型配置
-    model_config = get_model_config(dataset_name)
-    model_type = model_config['model_type']
-    input_shape = model_config['input_shape']
-    
-    print(f"数据集: {dataset_name}")
-    print(f"选择的模型类型: {model_type}")
-    print(f"输入形状: {input_shape}")
-    
-    # 创建不平衡数据集
-    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
+    # 遍历所有TBM数据集
+    for dataset_name, rho in tbm_datasets.items():
+        print(f"\n{'='*70}")
+        print(f"开始处理数据集: {dataset_name}, 不平衡率: {rho}")
+        print(f"{'='*70}")
         
-    # 直接获取训练和测试的dataloader
-    train_loader, test_loader = dataset.get_dataloaders()
-    
-    # 创建checkpoints目录（如果不存在）
-    os.makedirs('checkpoints', exist_ok=True)
-    model_path = os.path.join('checkpoints', 'dqn_classifier.pth')
-    
-    if TEST_ONLY:
-        print("测试模式: 加载多个模型并分别评估")
+        # 获取模型配置
+        model_config = get_model_config(dataset_name)
+        model_type = model_config['model_type']
+        input_shape = model_config['input_shape']
         
-        # 设置与训练时相同的参数
-        num_runs = 5
-        training_ratio = 1  # 使用与训练时相同的ratio
+        print(f"数据集: {dataset_name}")
+        print(f"选择的模型类型: {model_type}")
+        print(f"输入形状: {input_shape}")
         
-        # 根据模型类型创建相应的模型
-        if model_type == 'Q_Net_image':
-            q_net = Q_Net_image(input_shape, output_dim=2)
-        elif model_type == 'TBM_conv1d':
-            q_net = TBM_conv1d(input_shape, output_dim=2)
+        # 创建不平衡数据集
+        dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
+            
+        # 直接获取训练和测试的dataloader
+        train_loader, test_loader = dataset.get_dataloaders()
+        
+        # 创建checkpoints目录（如果不存在）
+        os.makedirs('checkpoints', exist_ok=True)
+        model_path = os.path.join('checkpoints', 'dqn_classifier.pth')
+        
+        if TEST_ONLY:
+            print("测试模式: 加载多个模型并分别评估")
+            
+            # 设置与训练时相同的参数
+            num_runs = 5
+            training_ratio = 1  # 使用与训练时相同的ratio
+            
+            # 根据模型类型创建相应的模型
+            if model_type == 'Q_Net_image':
+                q_net = Q_Net_image(input_shape, output_dim=2)
+            elif model_type == 'TBM_conv1d':
+                q_net = TBM_conv1d(input_shape, output_dim=2)
+            else:
+                raise ValueError(f"不支持的模型类型: {model_type}")
+                
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            q_net.to(device)
+            
+            # 循环加载每次训练保存的模型并评估
+            for run in range(1, num_runs + 1):
+                # 生成模型文件名，与训练时相同的命名方式
+                model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
+                model_path = os.path.join('checkpoints', model_filename)
+                
+                if os.path.exists(model_path):
+                    print(f"\n{'='*50}")
+                    print(f"加载并评估第 {run} 个模型: {model_filename}")
+                    print(f"{'='*50}")
+                    
+                    # 加载模型
+                    q_net.load_state_dict(torch.load(model_path), strict=False)
+                    print(f"成功加载模型: {model_path}")
+                    
+                    # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
+                    evaluate_model(q_net, test_loader, save_dir='checkpoints', 
+                                  dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
+                                  dataset_obj=dataset, run_number=run, model_type=model_type)
+                else:
+                    print(f"警告: 未找到模型文件 {model_path}")
+            
+            # 计算所有模型的G-mean标准差并更新Excel文件
+            print(f"\n{'='*50}")
+            print("所有模型评估完成，开始计算G-mean标准差...")
+            print(f"{'='*50}")
+            calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
         else:
-            raise ValueError(f"不支持的模型类型: {model_type}")
+            print("训练模式: 将进行模型训练和评估")
             
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        q_net.to(device)
-        
-        # 循环加载每次训练保存的模型并评估
-        for run in range(1, num_runs + 1):
-            # 生成模型文件名，与训练时相同的命名方式
-            model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
-            model_path = os.path.join('checkpoints', model_filename)
-            
-            if os.path.exists(model_path):
+            # 运行5次训练
+            num_runs = 5
+            print(f"开始进行 {num_runs} 次训练...")
+            for run in range(1, num_runs + 1):
+                
                 print(f"\n{'='*50}")
-                print(f"加载并评估第 {run} 个模型: {model_filename}")
+                print(f"开始第 {run} 次训练")
+                print(f"使用模型类型: {model_type}")
                 print(f"{'='*50}")
                 
-                # 加载模型
-                q_net.load_state_dict(torch.load(model_path), strict=False)
-                print(f"成功加载模型: {model_path}")
+                # 每次创建新的分类器实例，传入模型类型
+                classifier = MyRL(input_shape, rho=rho, model_type=model_type)
+                
+                # 开始训练，直接使用数据集对象而不是dataloader
+                classifier.train(dataset)
+                
+                # 使用MyRL类中的ratio参数
+                training_ratio = classifier.ratio
+                
+                # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
+                model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
+                numbered_model_path = os.path.join('checkpoints', model_filename)
+                
+                # 保存模型
+                torch.save(classifier.q_net.state_dict(), numbered_model_path)
+                print(f"模型已保存到 {numbered_model_path}")
                 
                 # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
-                evaluate_model(q_net, test_loader, save_dir='checkpoints', 
+                evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', 
                               dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
                               dataset_obj=dataset, run_number=run, model_type=model_type)
-            else:
-                print(f"警告: 未找到模型文件 {model_path}")
-        
-        # 计算所有模型的G-mean标准差并更新Excel文件
-        print(f"\n{'='*50}")
-        print("所有模型评估完成，开始计算G-mean标准差...")
-        print(f"{'='*50}")
-        calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
-    else:
-        print("训练模式: 将进行模型训练和评估")
-        
-        # 运行5次训练
-        num_runs = 5
-        print(f"开始进行 {num_runs} 次训练...")
-        
-        for run in range(1, num_runs + 1):
-            print(f"\n{'='*50}")
-            print(f"开始第 {run} 次训练")
-            print(f"使用模型类型: {model_type}")
+                
+                print(f"第 {run} 次训练完成")
+            
+            print(f"\n{'='*50}")    
+            print("所有训练完成，开始计算G-mean标准差...")
             print(f"{'='*50}")
             
-            # 每次创建新的分类器实例，传入模型类型
-            classifier = MyRL(input_shape, rho=rho, model_type=model_type)
-            
-            # 开始训练，直接使用数据集对象而不是dataloader
-            classifier.train(dataset)
-            
-            # 使用MyRL类中的ratio参数
-            training_ratio = classifier.ratio
-            
-            # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
-            model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
-            numbered_model_path = os.path.join('checkpoints', model_filename)
-            
-            # 保存模型
-            torch.save(classifier.q_net.state_dict(), numbered_model_path)
-            print(f"模型已保存到 {numbered_model_path}")
-            
-            # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
-            evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', 
-                          dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
-                          dataset_obj=dataset, run_number=run, model_type=model_type)
-            
-            print(f"第 {run} 次训练完成")
-        
-        print(f"\n{'='*50}")    
-        print("所有训练完成，开始计算G-mean标准差...")
-        print(f"{'='*50}")
-        
-        # 计算G-mean标准差并更新Excel文件
-        calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
-
-
+            # 计算G-mean标准差并更新Excel文件
+            calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
 if __name__ == "__main__":
     main()
-
 
 
 
