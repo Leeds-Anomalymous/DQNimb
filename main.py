@@ -418,6 +418,9 @@ def main():
         ('TBM_K_M_Noise', 1)
     ]
     
+    # 使用绝对路径
+    save_dir = '/root/autodl-tmp/checkpoints'
+    
     # 遍历所有TBM数据集配置
     for dataset_name, rho in tbm_configs:
             
@@ -440,9 +443,9 @@ def main():
         # 直接获取训练和测试的dataloader
         train_loader, test_loader = dataset.get_dataloaders()
         
-        # 创建checkpoints目录（如果不存在）
-        os.makedirs('checkpoints', exist_ok=True)
-        model_path = os.path.join('checkpoints', 'dqn_classifier.pth')
+        # 创建绝对路径目录（如果不存在）
+        os.makedirs(save_dir, exist_ok=True)
+        model_path = os.path.join(save_dir, 'dqn_classifier.pth')
         
         if TEST_ONLY:
             print("测试模式: 加载多个模型并分别评估")
@@ -466,7 +469,7 @@ def main():
             for run in range(1, num_runs + 1):
                 # 生成模型文件名，与训练时相同的命名方式
                 model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
-                model_path = os.path.join('checkpoints', model_filename)
+                model_path = os.path.join(save_dir, model_filename)
                 
                 if os.path.exists(model_path):
                     print(f"\n{'='*50}")
@@ -478,7 +481,7 @@ def main():
                     print(f"成功加载模型: {model_path}")
                     
                     # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
-                    evaluate_model(q_net, test_loader, save_dir='checkpoints', 
+                    evaluate_model(q_net, test_loader, save_dir=save_dir, 
                                   dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
                                   dataset_obj=dataset, run_number=run, model_type=model_type)
                 else:
@@ -488,7 +491,7 @@ def main():
             print(f"\n{'='*50}")
             print("所有模型评估完成，开始计算G-mean标准差...")
             print(f"{'='*50}")
-            calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
+            calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho)
         else:
             print("训练模式: 将进行模型训练和评估")
             
@@ -513,14 +516,14 @@ def main():
                 
                 # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
                 model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
-                numbered_model_path = os.path.join('checkpoints', model_filename)
+                numbered_model_path = os.path.join(save_dir, model_filename)
                 
                 # 保存模型
                 torch.save(classifier.q_net.state_dict(), numbered_model_path)
                 print(f"模型已保存到 {numbered_model_path}")
                 
                 # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
-                evaluate_model(classifier.q_net, test_loader, save_dir='checkpoints', 
+                evaluate_model(classifier.q_net, test_loader, save_dir=save_dir, 
                               dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
                               dataset_obj=dataset, run_number=run, model_type=model_type)
                 
@@ -531,7 +534,7 @@ def main():
             print(f"{'='*50}")
             
             # 计算G-mean标准差并更新Excel文件
-            calculate_and_update_variance('checkpoints', dataset_name, training_ratio, num_runs, rho)
+            calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho)
 if __name__ == "__main__":
     main()
 

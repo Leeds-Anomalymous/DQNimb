@@ -99,7 +99,7 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None, datas
     # 关闭图形以释放内存，不显示窗口
     plt.close()
 
-def evaluate_model(model, test_loader, save_dir='./', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None, run_number=None, model_type=None):
+def evaluate_model(model, test_loader, save_dir='/root/autodl-tmp/checkpoints', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None, run_number=None, model_type=None):
     """
     评估模型性能并计算相关指标
     
