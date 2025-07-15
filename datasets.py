@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, Subset, TensorDataset
 # from sklearn.model_selection import train_test_split
 
 class ImbalancedDataset:
-    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42, train_num_negative=4000, test_num_positive=4000, test_num_negative=8000):
+    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42, train_num_negative=8000, test_num_positive=4000, test_num_negative=4000):
         """
         初始化数据集处理类
         :param dataset_name: 数据集名称 (e.g., "mnist", "cifar10")
