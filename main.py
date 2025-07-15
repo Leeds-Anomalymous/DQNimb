@@ -410,17 +410,18 @@ def get_model_config(dataset_name):
         return {'model_type': 'Q_Net_image', 'input_shape': (1, 28, 28)}
 
 def main():
-    # 创建TBM数据集字典，每个数据集对应的rho值为0.01
-    tbm_datasets = {
-        'TBM_K_M': 0.01,
-        'TBM_K_M_Noise': 0.01,
-        'TBM_K_M': 1,
-        'TBM_K_M_Noise': 1
-    }
+    # 创建TBM数据集配置列表，每个元素包含数据集名称和对应的rho值
+    tbm_configs = [
+        ('TBM_K_M', 0.01),
+        ('TBM_K_M_Noise', 0.01), 
+        ('TBM_K_M', 1),
+        ('TBM_K_M_Noise', 1)
+    ]
     
-    # 遍历所有TBM数据集
-    for dataset_name, rho in tbm_datasets.items():
-        print(f"\n{'='*70}")
+    # 遍历所有TBM数据集配置
+    for dataset_name, rho in tbm_configs:
+            
+        print(f"\n{'='*70}") 
         print(f"开始处理数据集: {dataset_name}, 不平衡率: {rho}")
         print(f"{'='*70}")
         
