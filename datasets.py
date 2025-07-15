@@ -6,13 +6,14 @@ from torch.utils.data import DataLoader, Subset, TensorDataset
 # from sklearn.model_selection import train_test_split
 
 class ImbalancedDataset:
-    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42, test_num_positive=2000, test_num_negative=2000):
+    def __init__(self, dataset_name="mnist", rho=0.01, batch_size=64, seed=42, train_num_negative=4000, test_num_positive=4000, test_num_negative=8000):
         """
         初始化数据集处理类
         :param dataset_name: 数据集名称 (e.g., "mnist", "cifar10")
         :param rho: 不平衡因子 (正类样本数 = rho * 负类样本数)
         :param batch_size: DataLoader 批次大小
         :param seed: 随机种子（确保可复现）
+        :param train_num_negative: 训练集中负类的样本数量
         :param test_num_positive: 测试集中正类的样本数量
         :param test_num_negative: 测试集中负类的样本数量
         """
@@ -20,6 +21,7 @@ class ImbalancedDataset:
         self.rho = rho
         self.batch_size = batch_size
         self.seed = seed
+        self.train_num_negative = train_num_negative
         self.test_num_positive = test_num_positive
         self.test_num_negative = test_num_negative
         torch.manual_seed(seed)
@@ -283,13 +285,16 @@ class ImbalancedDataset:
         positive_idx = np.where(np.isin(labels, positive_classes))[0]
         negative_idx = np.where(np.isin(labels, negative_classes))[0]
         
-        # 对正负类分别进行采样，使用不同的采样数量
-        pos_sample_size = min(len(positive_idx), self.test_num_positive)
-        neg_sample_size = min(len(negative_idx), self.test_num_negative)
+        # 对正负类分别进行采样，如果样本数量不足则进行有放回采样
+        pos_sample_size = self.test_num_positive
+        neg_sample_size = self.test_num_negative
         
-        # 随机采样
-        sampled_positive_idx = np.random.choice(positive_idx, size=pos_sample_size, replace=False)
-        sampled_negative_idx = np.random.choice(negative_idx, size=neg_sample_size, replace=False)
+        # 随机采样 - 如果样本数量不足则有放回采样
+        pos_replace = len(positive_idx) < pos_sample_size
+        neg_replace = len(negative_idx) < neg_sample_size
+        
+        sampled_positive_idx = np.random.choice(positive_idx, size=pos_sample_size, replace=pos_replace)
+        sampled_negative_idx = np.random.choice(negative_idx, size=neg_sample_size, replace=neg_replace)
         
         # 合并采样后的正类和负类
         selected_idx = np.concatenate([sampled_positive_idx, sampled_negative_idx])
@@ -316,19 +321,22 @@ class ImbalancedDataset:
         # Step 1: 分离正/负类索引
         positive_idx = np.where(np.isin(labels, positive_classes))[0]
         negative_idx = np.where(np.isin(labels, negative_classes))[0]
-        n_negative = len(negative_idx)  # 负类原始样本数 N
         
-        # Step 2: 降采样正类（目标样本数 = rho * N）
+        # Step 2: 限制负类样本数量为train_num_negative
+        n_negative = min(len(negative_idx), self.train_num_negative)
+        sampled_negative_idx = np.random.choice(negative_idx, size=n_negative, replace=False)
+        
+        # Step 3: 降采样正类（目标样本数 = rho * n_negative）
         positive_num = max(1, int(self.rho * n_negative))  # 至少保留1个样本
         downsampled_positive_idx = np.random.choice(
             positive_idx, size=positive_num, replace=False
         )
         
-        # Step 3: 合并降采样后的正类 + 全部负类
-        selected_idx = np.concatenate([downsampled_positive_idx, negative_idx])
+        # Step 4: 合并降采样后的正类 + 采样后的负类
+        selected_idx = np.concatenate([downsampled_positive_idx, sampled_negative_idx])
         np.random.shuffle(selected_idx)  # 打乱顺序
         
-        # Step 4: 创建新数据集（标签映射：正类->0, 负类->1）
+        # Step 5: 创建新数据集（标签映射：正类->0, 负类->1）
         selected_data = data[selected_idx]
         selected_labels = labels[selected_idx]
         remapped_labels = np.where(
@@ -375,7 +383,7 @@ if __name__ == "__main__":
     from datasets import ImbalancedDataset
 
     # 初始化 MNIST 数据集（rho=0.01, 正类=标签2）
-    dataset = ImbalancedDataset(dataset_name="TBM_K", rho=0.01, batch_size=64)
+    dataset = ImbalancedDataset(dataset_name="TBM_K_M", rho=0.01, batch_size=64)
 
     # 获取 DataLoader
     train_loader, test_loader = dataset.get_dataloaders()
