@@ -92,7 +92,47 @@ class Q_Net_image(nn.Module):
         
         return x
 
+class TBM_conv1d_1layer(nn.Module):
+    """单层卷积的TBM模型 - 用于参数敏感性分析"""
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d_1layer, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # 只有一层卷积
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小 - 只经过一次池化
+        conv_output_size = (len_window // 2) * 32
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu2 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        # 单个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu2(x)
+        x = self.fc2(x)
+        
+        return x
+
 class TBM_conv1d(nn.Module):
+    """双层卷积的TBM模型 - 用于参数敏感性分析（原始版本）"""
     def __init__(self, input_shape, output_dim=2): 
         super(TBM_conv1d, self).__init__()
         len_window, feature_dim = input_shape 
@@ -140,6 +180,134 @@ class TBM_conv1d(nn.Module):
         # 全连接层
         x = self.fc1(x)
         x = self.relu3(x)
+        x = self.fc2(x)
+        
+        return x
+
+class TBM_conv1d_3layer(nn.Module):
+    """三层卷积的TBM模型 - 用于参数敏感性分析"""
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d_3layer, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # Layer 1
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Layer 2
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=5, stride=1, padding=2)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 3
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小 - 经过三次池化
+        conv_output_size = (len_window // 8) * 64
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu4 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        # 第一个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 第二个卷积块
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        
+        # 第三个卷积块
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = self.pool3(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu4(x)
+        x = self.fc2(x)
+        
+        return x
+
+class TBM_conv1d_4layer(nn.Module):
+    """四层卷积的TBM模型 - 用于参数敏感性分析"""
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d_4layer, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # Layer 1
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Layer 2
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=5, stride=1, padding=2)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 3
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 4
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=5, stride=1, padding=2)
+        self.relu4 = nn.ReLU()
+        self.pool4 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小 - 经过四次池化
+        conv_output_size = (len_window // 16) * 64
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu5 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        # 第一个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 第二个卷积块
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        
+        # 第三个卷积块
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = self.pool3(x)
+        
+        # 第四个卷积块
+        x = self.conv4(x)
+        x = self.relu4(x)
+        x = self.pool4(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu5(x)
         x = self.fc2(x)
         
         return x

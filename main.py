@@ -10,7 +10,7 @@ from collections import deque
 from tqdm import tqdm
 import os
 from datasets import ImbalancedDataset
-from Model import Q_Net_image, TBM_conv1d  # 导入两个模型类
+from Model import Q_Net_image, TBM_conv1d, TBM_conv1d_1layer, TBM_conv1d_3layer, TBM_conv1d_4layer  # 导入所有模型类
 from evaluate import evaluate_model  # 导入评估模块
 import pandas as pd
 
@@ -135,6 +135,15 @@ class MyRL():
         elif model_type == 'TBM_conv1d':
             self.q_net = TBM_conv1d(input_shape, output_dim=2)
             self.target_net = TBM_conv1d(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d_1layer':
+            self.q_net = TBM_conv1d_1layer(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d_1layer(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d_3layer':
+            self.q_net = TBM_conv1d_3layer(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d_3layer(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d_4layer':
+            self.q_net = TBM_conv1d_4layer(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d_4layer(input_shape, output_dim=2)
         else:
             raise ValueError(f"不支持的模型类型: {model_type}")
         
@@ -371,12 +380,13 @@ class MyRL():
         print("训练完成!")
     
     
-def get_model_config(dataset_name):
+def get_model_config(dataset_name, model_variant=None):
     """
-    根据数据集名称返回相应的模型配置
+    根据数据集名称和模型变体返回相应的模型配置
     
     Args:
         dataset_name: 数据集名称
+        model_variant: 模型变体，例如 'TBM_conv1d_1layer'
         
     Returns:
         dict: 包含模型类型和输入形状的配置
@@ -399,6 +409,13 @@ def get_model_config(dataset_name):
         'TBM_K_M_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
     }
     
+    # 如果指定了模型变体，直接使用
+    if model_variant:
+        if dataset_name in tbm_datasets:
+            config = tbm_datasets[dataset_name].copy()
+            config['model_type'] = model_variant
+            return config
+    
     # 合并配置
     all_configs = {**image_datasets, **tbm_datasets}
     
@@ -410,26 +427,30 @@ def get_model_config(dataset_name):
         return {'model_type': 'Q_Net_image', 'input_shape': (1, 28, 28)}
 
 def main():
-    # 创建TBM数据集配置列表，每个元素包含数据集名称和对应的rho值
-    tbm_configs = [
-        ('TBM_K_M', 0.01),
-        ('TBM_K_M_Noise', 0.01), 
-        ('TBM_K_M', 1),
-        ('TBM_K_M_Noise', 1)
+    # 创建TBM模型变体列表用于参数敏感性分析
+    model_variants = [
+        'TBM_conv1d_1layer',    # 1层卷积
+        'TBM_conv1d',           # 2层卷积（原始）
+        'TBM_conv1d_3layer',    # 3层卷积
+        'TBM_conv1d_4layer'     # 4层卷积
     ]
+    
+    # 使用TBM_K_M_Noise数据集，rho=0.01进行参数敏感性分析
+    dataset_name = 'TBM_K_M_Noise'
+    rho = 0.01
     
     # 使用绝对路径
     save_dir = '/root/autodl-tmp/checkpoints'
     
-    # 遍历所有TBM数据集配置
-    for dataset_name, rho in tbm_configs:
+    # 遍历所有模型变体
+    for model_variant in model_variants:
             
         print(f"\n{'='*70}") 
-        print(f"开始处理数据集: {dataset_name}, 不平衡率: {rho}")
+        print(f"开始处理数据集: {dataset_name}, 不平衡率: {rho}, 模型变体: {model_variant}")
         print(f"{'='*70}")
         
         # 获取模型配置
-        model_config = get_model_config(dataset_name)
+        model_config = get_model_config(dataset_name, model_variant)
         model_type = model_config['model_type']
         input_shape = model_config['input_shape']
         
@@ -445,7 +466,6 @@ def main():
         
         # 创建绝对路径目录（如果不存在）
         os.makedirs(save_dir, exist_ok=True)
-        model_path = os.path.join(save_dir, 'dqn_classifier.pth')
         
         if TEST_ONLY:
             print("测试模式: 加载多个模型并分别评估")
@@ -459,6 +479,12 @@ def main():
                 q_net = Q_Net_image(input_shape, output_dim=2)
             elif model_type == 'TBM_conv1d':
                 q_net = TBM_conv1d(input_shape, output_dim=2)
+            elif model_type == 'TBM_conv1d_1layer':
+                q_net = TBM_conv1d_1layer(input_shape, output_dim=2)
+            elif model_type == 'TBM_conv1d_3layer':
+                q_net = TBM_conv1d_3layer(input_shape, output_dim=2)
+            elif model_type == 'TBM_conv1d_4layer':
+                q_net = TBM_conv1d_4layer(input_shape, output_dim=2)
             else:
                 raise ValueError(f"不支持的模型类型: {model_type}")
                 
@@ -467,8 +493,8 @@ def main():
             
             # 循环加载每次训练保存的模型并评估
             for run in range(1, num_runs + 1):
-                # 生成模型文件名，与训练时相同的命名方式
-                model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
+                # 生成模型文件名，与训练时相同的命名方式，包含模型类型
+                model_filename = f'{dataset_name}_rho{rho}_{model_type}_训练完成比{training_ratio}_第{run}次.pth'
                 model_path = os.path.join(save_dir, model_filename)
                 
                 if os.path.exists(model_path):
@@ -497,7 +523,7 @@ def main():
             
             # 运行5次训练
             num_runs = 5
-            print(f"开始进行 {num_runs} 次训练...")
+            print(f"开始进行 {num_runs} 次训练，模型类型: {model_type}")
             for run in range(1, num_runs + 1):
                 
                 print(f"\n{'='*50}")
@@ -514,8 +540,8 @@ def main():
                 # 使用MyRL类中的ratio参数
                 training_ratio = classifier.ratio
                 
-                # 生成带数据集名称、不平衡率、训练完成比例和序号的模型文件名
-                model_filename = f'{dataset_name}_rho{rho}_训练完成比{training_ratio}_第{run}次.pth'
+                # 生成带数据集名称、不平衡率、模型类型、训练完成比例和序号的模型文件名
+                model_filename = f'{dataset_name}_rho{rho}_{model_type}_训练完成比{training_ratio}_第{run}次.pth'
                 numbered_model_path = os.path.join(save_dir, model_filename)
                 
                 # 保存模型
@@ -530,7 +556,7 @@ def main():
                 print(f"第 {run} 次训练完成")
             
             print(f"\n{'='*50}")    
-            print("所有训练完成，开始计算G-mean标准差...")
+            print(f"模型 {model_type} 的所有训练完成，开始计算G-mean标准差...")
             print(f"{'='*50}")
             
             # 计算G-mean标准差并更新Excel文件
