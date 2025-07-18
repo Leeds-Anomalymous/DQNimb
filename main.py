@@ -438,7 +438,7 @@ def main():
     # 创建TBM模型变体列表用于参数敏感性分析
     model_variants = [
         'TBM_conv1d_1layer',    # 1层卷积
-        'TBM_conv1d',           # 2层卷积（原始）
+        # 'TBM_conv1d',           # 2层卷积（原始）
         'TBM_conv1d_3layer',    # 3层卷积
         'TBM_conv1d_4layer'     # 4层卷积
     ]
