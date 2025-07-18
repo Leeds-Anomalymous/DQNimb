@@ -112,6 +112,13 @@ class TBM_conv1d_1layer(nn.Module):
         self.fc2 = nn.Linear(256, output_dim)
 
     def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
         # 确保输入形状为 [batch_size, feature_dim, len_window]
         if x.shape[1] != 3 and x.shape[2] == 3:
             x = x.transpose(1, 2)
@@ -160,6 +167,13 @@ class TBM_conv1d(nn.Module):
         self.fc2 = nn.Linear(256, output_dim)
 
     def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
         # 确保输入形状为 [batch_size, feature_dim, len_window]
         if x.shape[1] != 3 and x.shape[2] == 3:  # 如果输入是[batch, len_window, feature_dim]
             x = x.transpose(1, 2)  # 转换为[batch, feature_dim, len_window]
@@ -214,6 +228,13 @@ class TBM_conv1d_3layer(nn.Module):
         self.fc2 = nn.Linear(256, output_dim)
 
     def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
         # 确保输入形状为 [batch_size, feature_dim, len_window]
         if x.shape[1] != 3 and x.shape[2] == 3:
             x = x.transpose(1, 2)
@@ -278,6 +299,13 @@ class TBM_conv1d_4layer(nn.Module):
         self.fc2 = nn.Linear(256, output_dim)
 
     def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
         # 确保输入形状为 [batch_size, feature_dim, len_window]
         if x.shape[1] != 3 and x.shape[2] == 3:
             x = x.transpose(1, 2)
