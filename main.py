@@ -460,7 +460,7 @@ def main():
     ]
     
     # 使用绝对路径
-    save_dir = '/root/autodl-tmp/checkpoints'
+    save_dir = '/workspace/RL/DQNimb/results'
     
     # 双重循环：先遍历数据集配置，再遍历模型变体
     for dataset_name, rho in tbm_configs:
