@@ -419,6 +419,15 @@ def get_model_config(dataset_name, model_variant=None):
         'TBM_K_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
         'TBM_M_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
         'TBM_K_M_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        # 添加新的数据集配置
+        'TBM_M_Noise_snr_3': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise_snr_1': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise_snr_0': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise_snr_-1': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise_snr_-3': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise_snr_-5': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise_snr_-7': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_M_Noise_snr_-10': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
     }
     
     # 如果指定了模型变体，直接使用
@@ -457,14 +466,14 @@ def main():
     
     # 创建TBM模型变体列表用于参数敏感性分析
     model_variants = [
-        'TBM_conv1d_1layer',    # 1层卷积
-        # 'TBM_conv1d',           # 2层卷积（原始）
-        'TBM_conv1d_3layer',    # 3层卷积
-        'TBM_conv1d_4layer',    # 4层卷积
-        'TBM_conv1d_5layer',    # 5层卷积
-        'TBM_conv1d_6layer',    # 6层卷积
-        'TBM_conv1d_7layer',    # 7层卷积
-        'TBM_conv1d_8layer'     # 8层卷积
+        # 'TBM_conv1d_1layer',    # 1层卷积
+        'TBM_conv1d',           # 2层卷积（原始）
+        # 'TBM_conv1d_3layer',    # 3层卷积
+        # 'TBM_conv1d_4layer',    # 4层卷积
+        # 'TBM_conv1d_5layer',    # 5层卷积
+        # 'TBM_conv1d_6layer',    # 6层卷积
+        # 'TBM_conv1d_7layer',    # 7层卷积
+        # 'TBM_conv1d_8layer'     # 8层卷积
     ]
     
     # 使用绝对路径
@@ -559,7 +568,7 @@ def main():
                 print("训练模式: 将进行模型训练和评估")
                 
                 # 运行5次训练
-                num_runs = 5
+                num_runs = 2
                 print(f"开始进行 {num_runs} 次训练，模型类型: {model_type}")
                 for run in range(1, num_runs + 1):
                     
