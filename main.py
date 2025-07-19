@@ -420,14 +420,14 @@ def get_model_config(dataset_name, model_variant=None):
         'TBM_M_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
         'TBM_K_M_Noise': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
         # 添加新的数据集配置
-        'TBM_M_Noise_snr_3': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
-        'TBM_M_Noise_snr_1': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
-        'TBM_M_Noise_snr_0': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
-        'TBM_M_Noise_snr_-1': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
-        'TBM_M_Noise_snr_-3': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
-        'TBM_M_Noise_snr_-5': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
-        'TBM_M_Noise_snr_-7': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
-        'TBM_M_Noise_snr_-10': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_3': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_1': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_0': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_-1': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_-3': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_-5': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_-7': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_snr_-10': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
     }
     
     # 如果指定了模型变体，直接使用
@@ -454,14 +454,14 @@ def main():
         # ('TBM_K_M_Noise', 0.01), 
         # ('TBM_K_M', 1),
         # ('TBM_K_M_Noise', 1)
-        ('TBM_M_Noise_snr_3', 0.01),
-        ('TBM_M_Noise_snr_1', 0.01),
-        ('TBM_M_Noise_snr_0', 0.01),
-        ('TBM_M_Noise_snr_-1', 0.01),
-        ('TBM_M_Noise_snr_-3', 0.01),
-        ('TBM_M_Noise_snr_-5', 0.01),
-        ('TBM_M_Noise_snr_-7', 0.01),
-        ('TBM_M_Noise_snr_-10', 0.01)
+        ('TBM_K_M_Noise_snr_3', 0.01),
+        ('TBM_K_M_Noise_snr_1', 0.01),
+        ('TBM_K_M_Noise_snr_0', 0.01),
+        ('TBM_K_M_Noise_snr_-1', 0.01),
+        ('TBM_K_M_Noise_snr_-3', 0.01),
+        ('TBM_K_M_Noise_snr_-5', 0.01),
+        ('TBM_K_M_Noise_snr_-7', 0.01),
+        ('TBM_K_M_Noise_snr_-10', 0.01)
     ]
     
     # 创建TBM模型变体列表用于参数敏感性分析
