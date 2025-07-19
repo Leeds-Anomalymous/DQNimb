@@ -442,9 +442,17 @@ def main():
     # 创建TBM数据集配置列表，每个元素包含数据集名称和对应的rho值
     tbm_configs = [
         # ('TBM_K_M', 0.01),
-        ('TBM_K_M_Noise', 0.01), 
+        # ('TBM_K_M_Noise', 0.01), 
         # ('TBM_K_M', 1),
         # ('TBM_K_M_Noise', 1)
+        ('TBM_M_Noise_snr_3', 0.01),
+        ('TBM_M_Noise_snr_1', 0.01),
+        ('TBM_M_Noise_snr_0', 0.01),
+        ('TBM_M_Noise_snr_-1', 0.01),
+        ('TBM_M_Noise_snr_-3', 0.01),
+        ('TBM_M_Noise_snr_-5', 0.01),
+        ('TBM_M_Noise_snr_-7', 0.01),
+        ('TBM_M_Noise_snr_-10', 0.01)
     ]
     
     # 创建TBM模型变体列表用于参数敏感性分析
