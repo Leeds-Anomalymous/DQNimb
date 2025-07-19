@@ -10,7 +10,7 @@ from collections import deque
 from tqdm import tqdm
 import os
 from datasets import ImbalancedDataset
-from Model import Q_Net_image, TBM_conv1d, TBM_conv1d_1layer, TBM_conv1d_3layer, TBM_conv1d_4layer  # 导入所有模型类
+from Model import Q_Net_image, TBM_conv1d, TBM_conv1d_1layer, TBM_conv1d_3layer, TBM_conv1d_4layer, TBM_conv1d_5layer, TBM_conv1d_6layer, TBM_conv1d_7layer, TBM_conv1d_8layer  # 导入所有模型类
 from evaluate import evaluate_model  # 导入评估模块
 import pandas as pd
 
@@ -144,6 +144,18 @@ class MyRL():
         elif model_type == 'TBM_conv1d_4layer':
             self.q_net = TBM_conv1d_4layer(input_shape, output_dim=2)
             self.target_net = TBM_conv1d_4layer(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d_5layer':
+            self.q_net = TBM_conv1d_5layer(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d_5layer(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d_6layer':
+            self.q_net = TBM_conv1d_6layer(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d_6layer(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d_7layer':
+            self.q_net = TBM_conv1d_7layer(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d_7layer(input_shape, output_dim=2)
+        elif model_type == 'TBM_conv1d_8layer':
+            self.q_net = TBM_conv1d_8layer(input_shape, output_dim=2)
+            self.target_net = TBM_conv1d_8layer(input_shape, output_dim=2)
         else:
             raise ValueError(f"不支持的模型类型: {model_type}")
         
@@ -440,7 +452,11 @@ def main():
         'TBM_conv1d_1layer',    # 1层卷积
         # 'TBM_conv1d',           # 2层卷积（原始）
         'TBM_conv1d_3layer',    # 3层卷积
-        'TBM_conv1d_4layer'     # 4层卷积
+        'TBM_conv1d_4layer',    # 4层卷积
+        'TBM_conv1d_5layer',    # 5层卷积
+        'TBM_conv1d_6layer',    # 6层卷积
+        'TBM_conv1d_7layer',    # 7层卷积
+        'TBM_conv1d_8layer'     # 8层卷积
     ]
     
     # 使用绝对路径
@@ -490,9 +506,17 @@ def main():
                     q_net = TBM_conv1d_3layer(input_shape, output_dim=2)
                 elif model_type == 'TBM_conv1d_4layer':
                     q_net = TBM_conv1d_4layer(input_shape, output_dim=2)
+                elif model_type == 'TBM_conv1d_5layer':
+                    q_net = TBM_conv1d_5layer(input_shape, output_dim=2)
+                elif model_type == 'TBM_conv1d_6layer':
+                    q_net = TBM_conv1d_6layer(input_shape, output_dim=2)
+                elif model_type == 'TBM_conv1d_7layer':
+                    q_net = TBM_conv1d_7layer(input_shape, output_dim=2)
+                elif model_type == 'TBM_conv1d_8layer':
+                    q_net = TBM_conv1d_8layer(input_shape, output_dim=2)
                 else:
                     raise ValueError(f"不支持的模型类型: {model_type}")
-                    
+                
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 q_net.to(device)
                 

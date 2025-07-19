@@ -339,3 +339,407 @@ class TBM_conv1d_4layer(nn.Module):
         x = self.fc2(x)
         
         return x
+
+class TBM_conv1d_5layer(nn.Module):
+    """五层卷积的TBM模型 - 用于参数敏感性分析"""
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d_5layer, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # Layer 1
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Layer 2
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=5, stride=1, padding=2)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 3
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 4
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=5, stride=1, padding=2)
+        self.relu4 = nn.ReLU()
+        self.pool4 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 5
+        self.conv5 = nn.Conv1d(64, 128, kernel_size=5, stride=1, padding=2)
+        self.relu5 = nn.ReLU()
+        self.pool5 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小 - 经过五次池化
+        conv_output_size = (len_window // 32) * 128
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu6 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        # 第一个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 第二个卷积块
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        
+        # 第三个卷积块
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = self.pool3(x)
+        
+        # 第四个卷积块
+        x = self.conv4(x)
+        x = self.relu4(x)
+        x = self.pool4(x)
+        
+        # 第五个卷积块
+        x = self.conv5(x)
+        x = self.relu5(x)
+        x = self.pool5(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu6(x)
+        x = self.fc2(x)
+        
+        return x
+
+class TBM_conv1d_6layer(nn.Module):
+    """六层卷积的TBM模型 - 用于参数敏感性分析"""
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d_6layer, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # Layer 1
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Layer 2
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=5, stride=1, padding=2)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 3
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 4
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=5, stride=1, padding=2)
+        self.relu4 = nn.ReLU()
+        self.pool4 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 5
+        self.conv5 = nn.Conv1d(64, 128, kernel_size=5, stride=1, padding=2)
+        self.relu5 = nn.ReLU()
+        self.pool5 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 6
+        self.conv6 = nn.Conv1d(128, 128, kernel_size=5, stride=1, padding=2)
+        self.relu6 = nn.ReLU()
+        self.pool6 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小 - 经过六次池化
+        conv_output_size = (len_window // 64) * 128
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu7 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        # 第一个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 第二个卷积块
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        
+        # 第三个卷积块
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = self.pool3(x)
+        
+        # 第四个卷积块
+        x = self.conv4(x)
+        x = self.relu4(x)
+        x = self.pool4(x)
+        
+        # 第五个卷积块
+        x = self.conv5(x)
+        x = self.relu5(x)
+        x = self.pool5(x)
+        
+        # 第六个卷积块
+        x = self.conv6(x)
+        x = self.relu6(x)
+        x = self.pool6(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu7(x)
+        x = self.fc2(x)
+        
+        return x
+
+class TBM_conv1d_7layer(nn.Module):
+    """七层卷积的TBM模型 - 用于参数敏感性分析"""
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d_7layer, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # Layer 1
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Layer 2
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=5, stride=1, padding=2)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 3
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 4
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=5, stride=1, padding=2)
+        self.relu4 = nn.ReLU()
+        self.pool4 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 5
+        self.conv5 = nn.Conv1d(64, 128, kernel_size=5, stride=1, padding=2)
+        self.relu5 = nn.ReLU()
+        self.pool5 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 6
+        self.conv6 = nn.Conv1d(128, 128, kernel_size=5, stride=1, padding=2)
+        self.relu6 = nn.ReLU()
+        self.pool6 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 7
+        self.conv7 = nn.Conv1d(128, 256, kernel_size=5, stride=1, padding=2)
+        self.relu7 = nn.ReLU()
+        self.pool7 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小 - 经过七次池化
+        conv_output_size = (len_window // 128) * 256
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu8 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        # 第一个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 第二个卷积块
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        
+        # 第三个卷积块
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = self.pool3(x)
+        
+        # 第四个卷积块
+        x = self.conv4(x)
+        x = self.relu4(x)
+        x = self.pool4(x)
+        
+        # 第五个卷积块
+        x = self.conv5(x)
+        x = self.relu5(x)
+        x = self.pool5(x)
+        
+        # 第六个卷积块
+        x = self.conv6(x)
+        x = self.relu6(x)
+        x = self.pool6(x)
+        
+        # 第七个卷积块
+        x = self.conv7(x)
+        x = self.relu7(x)
+        x = self.pool7(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu8(x)
+        x = self.fc2(x)
+        
+        return x
+
+class TBM_conv1d_8layer(nn.Module):
+    """八层卷积的TBM模型 - 用于参数敏感性分析"""
+    def __init__(self, input_shape, output_dim=2): 
+        super(TBM_conv1d_8layer, self).__init__()
+        len_window, feature_dim = input_shape 
+        
+        # Layer 1
+        self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Layer 2
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=5, stride=1, padding=2)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 3
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 4
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=5, stride=1, padding=2)
+        self.relu4 = nn.ReLU()
+        self.pool4 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 5
+        self.conv5 = nn.Conv1d(64, 128, kernel_size=5, stride=1, padding=2)
+        self.relu5 = nn.ReLU()
+        self.pool5 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 6
+        self.conv6 = nn.Conv1d(128, 128, kernel_size=5, stride=1, padding=2)
+        self.relu6 = nn.ReLU()
+        self.pool6 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 7
+        self.conv7 = nn.Conv1d(128, 256, kernel_size=5, stride=1, padding=2)
+        self.relu7 = nn.ReLU()
+        self.pool7 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Layer 8
+        self.conv8 = nn.Conv1d(256, 256, kernel_size=5, stride=1, padding=2)
+        self.relu8 = nn.ReLU()
+        self.pool8 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # 计算卷积输出大小 - 经过八次池化
+        conv_output_size = (len_window // 256) * 256
+        
+        # 全连接层
+        self.fc1 = nn.Linear(conv_output_size, 256)
+        self.relu9 = nn.ReLU()
+        self.fc2 = nn.Linear(256, output_dim)
+
+    def forward(self, x):
+        # 处理输入维度
+        # 检查是否是4D输入 [batch, channels, height, width]
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            # 重塑为3D输入 [batch, channels, seq_len]
+            x = x.reshape(batch_size, channels, seq_len)
+        
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        # 第一个卷积块
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        
+        # 第二个卷积块
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        
+        # 第三个卷积块
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = self.pool3(x)
+        
+        # 第四个卷积块
+        x = self.conv4(x)
+        x = self.relu4(x)
+        x = self.pool4(x)
+        
+        # 第五个卷积块
+        x = self.conv5(x)
+        x = self.relu5(x)
+        x = self.pool5(x)
+        
+        # 第六个卷积块
+        x = self.conv6(x)
+        x = self.relu6(x)
+        x = self.pool6(x)
+        
+        # 第七个卷积块
+        x = self.conv7(x)
+        x = self.relu7(x)
+        x = self.pool7(x)
+        
+        # 第八个卷积块
+        x = self.conv8(x)
+        x = self.relu8(x)
+        x = self.pool8(x)
+        
+        # 扁平化
+        x = x.flatten(1)
+        
+        # 全连接层
+        x = self.fc1(x)
+        x = self.relu9(x)
+        x = self.fc2(x)
+        
+        return x
