@@ -10,9 +10,26 @@ from collections import deque
 from tqdm import tqdm
 import os
 from datasets import ImbalancedDataset
-from Model import Q_Net_image, TBM_conv1d, TBM_conv1d_1layer, TBM_conv1d_3layer, TBM_conv1d_4layer, TBM_conv1d_5layer, TBM_conv1d_6layer, TBM_conv1d_7layer, TBM_conv1d_8layer  # 导入所有模型类
+from Model import Q_Net_image, TBM_conv1d, TBM_conv1d_1layer, TBM_conv1d_3layer, TBM_conv1d_4layer, TBM_conv1d_5layer, TBM_conv1d_6layer, TBM_conv1d_7layer, TBM_conv1d_8layer, ResNet32_1D, LSTM, BiLSTM, Transformer  # 导入所有模型类
 from evaluate import evaluate_model  # 导入评估模块
 import pandas as pd
+
+def set_random_seed(seed):
+    """
+    设置所有随机数种子以确保实验的可重现性
+    
+    Args:
+        seed: 随机数种子
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # 确保CUDA操作的确定性
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    print(f"已设置随机数种子: {seed}")
 
 #由于方差太小，此次数据用标准差
 def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho):
@@ -156,6 +173,18 @@ class MyRL():
         elif model_type == 'TBM_conv1d_8layer':
             self.q_net = TBM_conv1d_8layer(input_shape, output_dim=2)
             self.target_net = TBM_conv1d_8layer(input_shape, output_dim=2)
+        elif model_type == 'ResNet32_1D':
+            self.q_net = ResNet32_1D(input_shape, output_dim=2)
+            self.target_net = ResNet32_1D(input_shape, output_dim=2)
+        elif model_type == 'LSTM':
+            self.q_net = LSTM(input_shape, output_dim=2)
+            self.target_net = LSTM(input_shape, output_dim=2)
+        elif model_type == 'BiLSTM':
+            self.q_net = BiLSTM(input_shape, output_dim=2)
+            self.target_net = BiLSTM(input_shape, output_dim=2)
+        elif model_type == 'Transformer':
+            self.q_net = Transformer(input_shape, output_dim=2)
+            self.target_net = Transformer(input_shape, output_dim=2)
         else:
             raise ValueError(f"不支持的模型类型: {model_type}")
         
@@ -451,29 +480,38 @@ def main():
     # 创建TBM数据集配置列表，每个元素包含数据集名称和对应的rho值
     tbm_configs = [
         # ('TBM_K_M', 0.01),
-        # ('TBM_K_M_Noise', 0.01), 
+        ('TBM_K_M_Noise', 0.01), 
+        # ('TBM_K_M_Noise', 0.009), 
+        # ('TBM_K_M_Noise', 0.008), 
+        # ('TBM_K_M_Noise', 0.007), 
+        # ('TBM_K_M_Noise', 0.006), 
+        # ('TBM_K_M_Noise', 0.005) 
         # ('TBM_K_M', 1),
         # ('TBM_K_M_Noise', 1)
-        ('TBM_K_M_Noise_snr_3', 0.01),
-        ('TBM_K_M_Noise_snr_1', 0.01),
-        ('TBM_K_M_Noise_snr_0', 0.01),
-        ('TBM_K_M_Noise_snr_-1', 0.01),
-        ('TBM_K_M_Noise_snr_-3', 0.01),
-        ('TBM_K_M_Noise_snr_-5', 0.01),
-        ('TBM_K_M_Noise_snr_-7', 0.01),
-        ('TBM_K_M_Noise_snr_-10', 0.01)
+        # ('TBM_K_M_Noise_snr_3', 0.01),
+        # ('TBM_K_M_Noise_snr_1', 0.01),
+        # ('TBM_K_M_Noise_snr_0', 0.01),
+        # ('TBM_K_M_Noise_snr_-1', 0.01),
+        # ('TBM_K_M_Noise_snr_-3', 0.01),
+        # ('TBM_K_M_Noise_snr_-5', 0.01),
+        # ('TBM_K_M_Noise_snr_-7', 0.01),
+        # ('TBM_K_M_Noise_snr_-10', 0.01)
     ]
     
     # 创建TBM模型变体列表用于参数敏感性分析
     model_variants = [
         # 'TBM_conv1d_1layer',    # 1层卷积
-        'TBM_conv1d',           # 2层卷积（原始）
+        #'TBM_conv1d',           # 2层卷积（原始）
         # 'TBM_conv1d_3layer',    # 3层卷积
         # 'TBM_conv1d_4layer',    # 4层卷积
         # 'TBM_conv1d_5layer',    # 5层卷积
         # 'TBM_conv1d_6layer',    # 6层卷积
         # 'TBM_conv1d_7layer',    # 7层卷积
-        # 'TBM_conv1d_8layer'     # 8层卷积
+        # 'TBM_conv1d_8layer',    # 8层卷积
+        'ResNet32_1D',          # ResNet-32 1D模型
+        'LSTM',                 # LSTM模型
+        'BiLSTM',               # BiLSTM模型
+        'Transformer'           # Transformer模型
     ]
     
     # 使用绝对路径
@@ -531,6 +569,14 @@ def main():
                     q_net = TBM_conv1d_7layer(input_shape, output_dim=2)
                 elif model_type == 'TBM_conv1d_8layer':
                     q_net = TBM_conv1d_8layer(input_shape, output_dim=2)
+                elif model_type == 'ResNet32_1D':
+                    q_net = ResNet32_1D(input_shape, output_dim=2)
+                elif model_type == 'LSTM':
+                    q_net = LSTM(input_shape, output_dim=2)
+                elif model_type == 'BiLSTM':
+                    q_net = BiLSTM(input_shape, output_dim=2)
+                elif model_type == 'Transformer':
+                    q_net = Transformer(input_shape, output_dim=2)
                 else:
                     raise ValueError(f"不支持的模型类型: {model_type}")
                 
@@ -566,9 +612,9 @@ def main():
                 calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho)
             else:
                 print("训练模式: 将进行模型训练和评估")
-                
-                # 运行5次训练
-                num_runs = 2
+
+                # 运行10次训练
+                num_runs = 10
                 print(f"开始进行 {num_runs} 次训练，模型类型: {model_type}")
                 for run in range(1, num_runs + 1):
                     
@@ -576,6 +622,11 @@ def main():
                     print(f"开始第 {run} 次训练")
                     print(f"使用模型类型: {model_type}")
                     print(f"{'='*50}")
+                    
+                    # 为每次运行设置不同的随机数种子
+                    # 使用数据集名称的哈希值、rho值、模型类型和运行次数来生成唯一种子
+                    seed = hash(f"{dataset_name}_{rho}_{model_type}_{run}") % (2**32)
+                    set_random_seed(seed)
                     
                     # 每次创建新的分类器实例，传入模型类型
                     classifier = MyRL(input_shape, rho=rho, model_type=model_type)

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 class Q_Net_image(nn.Module):
     def __init__(self, input_shape, output_dim=10): 
@@ -742,4 +743,226 @@ class TBM_conv1d_8layer(nn.Module):
         x = self.relu9(x)
         x = self.fc2(x)
         
+        return x
+
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm1d(out_channels)
+        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm1d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm1d(out_channels)
+            )
+
+    def forward(self, x):
+        identity = self.shortcut(x)
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += identity
+        return self.relu(out)
+
+class ResNet32_1D(nn.Module):
+    def __init__(self, input_shape, output_dim=2):
+        super(ResNet32_1D, self).__init__()
+        len_window, feature_dim = input_shape
+        input_channels = feature_dim
+        seq_length = len_window
+        num_classes = output_dim
+        
+        self.in_channels = 16
+        self.conv1 = nn.Conv1d(input_channels, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm1d(16)
+        self.relu = nn.ReLU(inplace=True)
+        self.layer1 = self._make_layer(BasicBlock, 16, 5, stride=1)
+        self.layer2 = self._make_layer(BasicBlock, 32, 5, stride=2)
+        self.layer3 = self._make_layer(BasicBlock, 64, 5, stride=2)
+        
+        self.seq_length = seq_length // 4 
+        self.avgpool = nn.AdaptiveAvgPool1d(self.seq_length)
+        self.fc = nn.Linear(64 * self.seq_length, num_classes)
+
+    def _make_layer(self, block, out_channels, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_channels, out_channels, stride))
+            self.in_channels = out_channels
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        # 处理输入维度
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            x = x.reshape(batch_size, channels, seq_len)
+        
+        # 确保输入形状为 [batch_size, feature_dim, len_window]
+        if x.shape[1] != 3 and x.shape[2] == 3:
+            x = x.transpose(1, 2)
+        
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return x
+
+class LSTM(nn.Module):
+    def __init__(self, input_shape, output_dim=2):
+        super(LSTM, self).__init__()
+        len_window, feature_dim = input_shape
+        input_size = feature_dim
+        hidden_size = 64
+        num_layers = 2
+        num_classes = output_dim
+        
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # LSTM
+        self.lstm = nn.LSTM(
+            input_size, hidden_size, num_layers, 
+            batch_first=True, bidirectional=False
+        )
+        
+        # 全连接层
+        self.fc = nn.Linear(hidden_size, num_classes)
+        
+    def forward(self, x):
+        # 处理输入维度
+        if len(x.shape) == 4:
+            x = x.squeeze(1)
+        elif len(x.shape) == 3 and x.shape[1] == 3:
+            x = x.permute(0, 2, 1)
+        
+        # 初始化隐藏状态
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        
+        # 前向传播LSTM
+        out, _ = self.lstm(x, (h0, c0))
+        
+        # 取最后一个时间步的输出
+        out = self.fc(out[:, -1, :])
+        return out
+
+class BiLSTM(nn.Module):
+    def __init__(self, input_shape, output_dim=2):
+        super(BiLSTM, self).__init__()
+        len_window, feature_dim = input_shape
+        input_size = feature_dim
+        hidden_size = 64
+        num_layers = 2
+        num_classes = output_dim
+        
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # BiLSTM
+        self.lstm = nn.LSTM(
+            input_size, hidden_size, num_layers, 
+            batch_first=True, bidirectional=True
+        )
+        
+        # 全连接层
+        self.fc = nn.Linear(hidden_size * 2, num_classes)  # *2 因为双向
+        
+    def forward(self, x):
+        # 处理输入维度
+        if len(x.shape) == 4:
+            x = x.squeeze(1)
+        elif len(x.shape) == 3 and x.shape[1] == 3:
+            x = x.permute(0, 2, 1)
+        
+        # 初始化隐藏状态
+        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
+        
+        # 前向传播BiLSTM
+        out, _ = self.lstm(x, (h0, c0))
+        
+        # 取最后一个时间步的输出
+        out = self.fc(out[:, -1, :])
+        return out
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
+
+class Transformer(nn.Module):
+    def __init__(self, input_shape, output_dim=2):
+        super(Transformer, self).__init__()
+        len_window, feature_dim = input_shape
+        input_dim = feature_dim
+        seq_length = len_window
+        num_classes = output_dim
+        d_model = 256
+        nhead = 2
+        num_encoder_layers = 3
+        dim_feedforward = 512
+        dropout = 0.1
+        
+        # 将输入特征映射到模型维度
+        self.embedding = nn.Linear(input_dim, d_model)
+        
+        # 位置编码
+        self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=seq_length)
+        
+        # Transformer编码器层
+        encoder_layers = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, batch_first=True)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
+        
+        # 分类头
+        self.classifier = nn.Linear(d_model, num_classes)
+        
+        self.d_model = d_model
+        self.seq_length = seq_length
+        
+    def forward(self, x):
+        # 处理输入维度
+        if len(x.shape) == 4:
+            batch_size, channels, _, seq_len = x.shape
+            x = x.reshape(batch_size, channels, seq_len)
+        
+        # x shape: [batch_size, channels, seq_length]
+        # 转换为Transformer期望的形状 [seq_length, batch_size, features]
+        x = x.permute(2, 0, 1)  # [seq_length, batch_size, channels]
+        
+        # 映射到模型维度
+        x = self.embedding(x)
+        
+        # 添加位置编码
+        x = self.pos_encoder(x)
+        
+        # 通过Transformer编码器
+        x = self.transformer_encoder(x)
+        
+        # 使用序列的平均值进行分类
+        x = x.mean(dim=0)  # [batch_size, d_model]
+        
+        # 分类层
+        x = self.classifier(x)
         return x
