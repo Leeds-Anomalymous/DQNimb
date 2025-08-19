@@ -511,7 +511,7 @@ def main():
         'ResNet32_1D',          # ResNet-32 1D模型
         'LSTM',                 # LSTM模型
         'BiLSTM',               # BiLSTM模型
-        'Transformer'           # Transformer模型
+        # 'Transformer'           # Transformer模型
     ]
     
     # 使用绝对路径
@@ -547,7 +547,7 @@ def main():
                 print("测试模式: 加载多个模型并分别评估")
                 
                 # 设置与训练时相同的参数
-                num_runs = 5
+                num_runs = 10
                 training_ratio = 1  # 使用与训练时相同的ratio
                 
                 # 根据模型类型创建相应的模型
@@ -613,7 +613,7 @@ def main():
             else:
                 print("训练模式: 将进行模型训练和评估")
 
-                # 运行10次训练
+                # 运行5次训练
                 num_runs = 10
                 print(f"开始进行 {num_runs} 次训练，模型类型: {model_type}")
                 for run in range(1, num_runs + 1):

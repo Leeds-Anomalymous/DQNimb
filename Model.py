@@ -839,11 +839,12 @@ class LSTM(nn.Module):
         self.fc = nn.Linear(hidden_size, num_classes)
         
     def forward(self, x):
-        # 处理输入维度
+        # 处理输入维度: [64, 3, 1, 1024] -> [64, 1024, 3]
         if len(x.shape) == 4:
-            x = x.squeeze(1)
+            batch_size, channels, height, width = x.shape
+            x = x.squeeze(2).permute(0, 2, 1)  # [64, 3, 1024] -> [64, 1024, 3]
         elif len(x.shape) == 3 and x.shape[1] == 3:
-            x = x.permute(0, 2, 1)
+            x = x.permute(0, 2, 1)  # [batch, 3, seq_len] -> [batch, seq_len, 3]
         
         # 初始化隐藏状态
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
@@ -878,11 +879,12 @@ class BiLSTM(nn.Module):
         self.fc = nn.Linear(hidden_size * 2, num_classes)  # *2 因为双向
         
     def forward(self, x):
-        # 处理输入维度
+        # 处理输入维度: [64, 3, 1, 1024] -> [64, 1024, 3]
         if len(x.shape) == 4:
-            x = x.squeeze(1)
+            batch_size, channels, height, width = x.shape
+            x = x.squeeze(2).permute(0, 2, 1)  # [64, 3, 1024] -> [64, 1024, 3]
         elif len(x.shape) == 3 and x.shape[1] == 3:
-            x = x.permute(0, 2, 1)
+            x = x.permute(0, 2, 1)  # [batch, 3, seq_len] -> [batch, seq_len, 3]
         
         # 初始化隐藏状态
         h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
@@ -942,15 +944,14 @@ class Transformer(nn.Module):
         self.seq_length = seq_length
         
     def forward(self, x):
-        # 处理输入维度
+        # 处理输入维度: [64, 3, 1, 1024] -> [64, 1024, 3]
         if len(x.shape) == 4:
-            batch_size, channels, _, seq_len = x.shape
-            x = x.reshape(batch_size, channels, seq_len)
+            batch_size, channels, height, width = x.shape
+            x = x.squeeze(2).permute(0, 2, 1)  # [64, 3, 1024] -> [64, 1024, 3]
+        elif len(x.shape) == 3 and x.shape[1] == 3:
+            x = x.permute(0, 2, 1)  # [batch, 3, seq_len] -> [batch, seq_len, 3]
         
-        # x shape: [batch_size, channels, seq_length]
-        # 转换为Transformer期望的形状 [seq_length, batch_size, features]
-        x = x.permute(2, 0, 1)  # [seq_length, batch_size, channels]
-        
+        # x shape: [batch_size, seq_length, features]
         # 映射到模型维度
         x = self.embedding(x)
         
@@ -961,7 +962,7 @@ class Transformer(nn.Module):
         x = self.transformer_encoder(x)
         
         # 使用序列的平均值进行分类
-        x = x.mean(dim=0)  # [batch_size, d_model]
+        x = x.mean(dim=1)  # [batch_size, d_model]
         
         # 分类层
         x = self.classifier(x)
