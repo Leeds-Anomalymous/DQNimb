@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from collections import deque
 from tqdm import tqdm
 import os
+import matplotlib.pyplot as plt  # 确保已导入matplotlib
 from datasets import ImbalancedDataset
 from Model import Q_Net_image, TBM_conv1d, TBM_conv1d_1layer, TBM_conv1d_3layer, TBM_conv1d_4layer, TBM_conv1d_5layer, TBM_conv1d_6layer, TBM_conv1d_7layer, TBM_conv1d_8layer, ResNet32_1D, LSTM, BiLSTM, Transformer  # 导入所有模型类
 from evaluate import evaluate_model  # 导入评估模块
@@ -145,6 +146,9 @@ class MyRL():
         self.batch_size = 64
         self.ratio = 1
         
+        # 添加用于记录损失的列表
+        self.loss_history = []
+        
         # 根据模型类型选择网络
         if model_type == 'Q_Net_image':
             self.q_net = Q_Net_image(input_shape, output_dim=2)
@@ -271,6 +275,9 @@ class MyRL():
             
         # 计算损失并更新
         loss = F.mse_loss(current_q, target_q)
+        
+        # 记录损失值
+        self.loss_history.append(loss.item())
 
         # 清零梯度，反向传播，更新参数
         self.optimizer.zero_grad()
@@ -421,6 +428,22 @@ class MyRL():
         print("训练完成!")
     
     
+    def plot_loss(self, save_path):
+        """
+        绘制训练过程中的损失曲线
+        Args:
+            save_path: 保存图片的路径
+        """
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.loss_history)
+        plt.title('Q-Network Training Loss')
+        plt.xlabel('Training Steps')
+        plt.ylabel('Loss')
+        plt.grid(True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"损失曲线已保存到 {save_path}")
+
 def get_model_config(dataset_name, model_variant=None):
     """
     根据数据集名称和模型变体返回相应的模型配置
@@ -481,11 +504,11 @@ def main():
     tbm_configs = [
         # ('TBM_K_M', 0.01),
         ('TBM_K_M_Noise', 0.01), 
-        # ('TBM_K_M_Noise', 0.009), 
-        # ('TBM_K_M_Noise', 0.008), 
-        # ('TBM_K_M_Noise', 0.007), 
-        # ('TBM_K_M_Noise', 0.006), 
-        # ('TBM_K_M_Noise', 0.005) 
+        ('TBM_K_M_Noise', 0.009), 
+        ('TBM_K_M_Noise', 0.008), 
+        ('TBM_K_M_Noise', 0.007), 
+        ('TBM_K_M_Noise', 0.006), 
+        ('TBM_K_M_Noise', 0.005) 
         # ('TBM_K_M', 1),
         # ('TBM_K_M_Noise', 1)
         # ('TBM_K_M_Noise_snr_3', 0.01),
@@ -503,19 +526,19 @@ def main():
         # 'TBM_conv1d_1layer',    # 1层卷积
         #'TBM_conv1d',           # 2层卷积（原始）
         # 'TBM_conv1d_3layer',    # 3层卷积
-        # 'TBM_conv1d_4layer',    # 4层卷积
+        'TBM_conv1d_4layer',    # 4层卷积
         # 'TBM_conv1d_5layer',    # 5层卷积
         # 'TBM_conv1d_6layer',    # 6层卷积
         # 'TBM_conv1d_7layer',    # 7层卷积
         # 'TBM_conv1d_8layer',    # 8层卷积
-        'ResNet32_1D',          # ResNet-32 1D模型
-        'LSTM',                 # LSTM模型
-        'BiLSTM',               # BiLSTM模型
+        # 'ResNet32_1D',          # ResNet-32 1D模型
+        # 'LSTM',                 # LSTM模型
+        # 'BiLSTM',               # BiLSTM模型
         # 'Transformer'           # Transformer模型
     ]
     
     # 使用绝对路径
-    save_dir = '/workspace/RL/DQNimb/results'
+    save_dir = '/workspace/RL/DQNimb/final_4layer_results'
     
     # 双重循环：先遍历数据集配置，再遍历模型变体
     for dataset_name, rho in tbm_configs:
@@ -613,7 +636,7 @@ def main():
             else:
                 print("训练模式: 将进行模型训练和评估")
 
-                # 运行5次训练
+                # 运行10次训练
                 num_runs = 10
                 print(f"开始进行 {num_runs} 次训练，模型类型: {model_type}")
                 for run in range(1, num_runs + 1):
@@ -650,6 +673,11 @@ def main():
                                   dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
                                   dataset_obj=dataset, run_number=run, model_type=model_type)
                     
+                    # 绘制并保存损失曲线
+                    loss_filename = f'{dataset_name}_rho{rho}_{model_type}_训练完成比{training_ratio}_第{run}次_loss.png'
+                    loss_path = os.path.join(save_dir, loss_filename)
+                    classifier.plot_loss(loss_path)
+                    
                     print(f"第 {run} 次训练完成")
                 
                 print(f"\n{'='*50}")    
@@ -660,6 +688,8 @@ def main():
                 calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho)
 if __name__ == "__main__":
     main()
+
+# python /workspace/RL/DQNimb/main.py
 
 
 
