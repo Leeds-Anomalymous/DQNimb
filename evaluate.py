@@ -99,7 +99,7 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None, datas
     # 关闭图形以释放内存，不显示窗口
     plt.close()
 
-def evaluate_model(model, test_loader, save_dir='/root/autodl-tmp/checkpoints', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None, run_number=None, model_type=None):
+def evaluate_model(model, test_loader, save_dir='/root/autodl-tmp/checkpoints', dataset_name=None, training_ratio=None, rho=None, dataset_obj=None, run_number=None, model_type=None, reward_multiplier=1.0, discount_factor=0.1):
     """
     评估模型性能并计算相关指标
     
@@ -113,6 +113,8 @@ def evaluate_model(model, test_loader, save_dir='/root/autodl-tmp/checkpoints', 
         dataset_obj: 数据集对象，用于获取样本数量统计
         run_number: 运行次数编号，用于文件命名
         model_type: 模型类型名称
+        reward_multiplier: 奖励倍数
+        discount_factor: 折扣因子
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -204,6 +206,8 @@ def evaluate_model(model, test_loader, save_dir='/root/autodl-tmp/checkpoints', 
         '模型类型': [model_type if model_type else 'Unknown'],
         '训练完成比例': [training_ratio if training_ratio is not None else 'Unknown'],
         '不平衡率rho': [rho if rho is not None else 'Unknown'],
+        '奖励倍数': [reward_multiplier if reward_multiplier is not None else 1.0],
+        '折扣因子': [discount_factor if discount_factor is not None else 0.1],  # 添加折扣因子
         '训练集正类样本数': [train_positive_count],
         '训练集负类样本数': [train_negative_count],
         '测试集正类样本数': [test_positive_count],
@@ -245,13 +249,15 @@ def evaluate_model(model, test_loader, save_dir='/root/autodl-tmp/checkpoints', 
         print(f"保存Excel文件时出错: {e}")
     
     # 绘制混淆矩阵
-    # 生成带数据集名称、模型类型、不平衡率、训练完成比例和序号的文件名
+    # 生成带数据集名称、模型类型、不平衡率、奖励倍数、折扣因子、训练完成比例和序号的文件名
     dataset_str = dataset_name if dataset_name else 'Unknown'
     model_str = model_type if model_type else 'Unknown'
     rho_str = f"rho{rho}" if rho is not None else 'rhoUnknown'
+    reward_str = f"reward{reward_multiplier}" if reward_multiplier is not None else 'reward1.0'
+    gamma_str = f"gamma{discount_factor}" if discount_factor is not None else 'gamma0.1'
     ratio_str = f"{training_ratio}" if training_ratio is not None else 'Unknown'
     
-    cm_filename = f'{dataset_str}_{model_str}_{rho_str}_训练完成比{ratio_str}_第{run_number}次.png'
+    cm_filename = f'{dataset_str}_{model_str}_{rho_str}_{reward_str}_{gamma_str}_训练完成比{ratio_str}_第{run_number}次.png'
     cm_path = os.path.join(save_dir, cm_filename)
     
     plot_confusion_matrix(all_labels, all_preds, save_path=cm_path, model_type=model_type,

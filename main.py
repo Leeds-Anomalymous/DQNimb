@@ -134,12 +134,13 @@ def calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_ru
         print(f"处理Excel文件时出错: {e}")
 
 class MyRL():
-    def __init__(self, input_shape, rho=0.01, model_type='Q_Net_image'):
+    def __init__(self, input_shape, rho=0.01, model_type='Q_Net_image', reward_multiplier=1.0, discount_factor=0.1):
 
-        self.discount_factor = 0.1
+        self.discount_factor = discount_factor  # 使用传入的折扣因子参数
         self.mem_size = 50000
-        self.rho= rho
-        self.lambda_value = rho 
+        self.rho = rho
+        self.reward_multiplier = reward_multiplier  # 保存奖励倍数
+        self.lambda_value = rho * reward_multiplier  # 使用不平衡率乘以倍数作为奖励值
         self.t_max = 120000
         self.eta = 0.05
         self.learning_rate = 0.00025
@@ -499,193 +500,150 @@ def get_model_config(dataset_name, model_variant=None):
         print(f"警告: 未找到数据集 {dataset_name} 的配置，使用默认图像模型配置")
         return {'model_type': 'Q_Net_image', 'input_shape': (1, 28, 28)}
 
+
 def main():
+
+    set_random_seed(42)  # 设置全局随机数种子以确保可重复性
+    
     # 创建TBM数据集配置列表，每个元素包含数据集名称和对应的rho值
     tbm_configs = [
-        # ('TBM_K_M', 0.01),
-        ('TBM_K_M_Noise', 0.01), 
-        ('TBM_K_M_Noise', 0.009), 
-        ('TBM_K_M_Noise', 0.008), 
-        ('TBM_K_M_Noise', 0.007), 
-        ('TBM_K_M_Noise', 0.006), 
-        ('TBM_K_M_Noise', 0.005) 
-        # ('TBM_K_M', 1),
-        # ('TBM_K_M_Noise', 1)
-        # ('TBM_K_M_Noise_snr_3', 0.01),
-        # ('TBM_K_M_Noise_snr_1', 0.01),
-        # ('TBM_K_M_Noise_snr_0', 0.01),
-        # ('TBM_K_M_Noise_snr_-1', 0.01),
-        # ('TBM_K_M_Noise_snr_-3', 0.01),
-        # ('TBM_K_M_Noise_snr_-5', 0.01),
-        # ('TBM_K_M_Noise_snr_-7', 0.01),
-        # ('TBM_K_M_Noise_snr_-10', 0.01)
+        ('TBM_K_M_Noise', 0.01),
+        ('TBM_K_M_Noise', 0.008),  # 添加新的不平衡率
+        ('TBM_K_M_Noise', 0.005)
     ]
     
-    # 创建TBM模型变体列表用于参数敏感性分析
-    model_variants = [
-        # 'TBM_conv1d_1layer',    # 1层卷积
-        #'TBM_conv1d',           # 2层卷积（原始）
-        # 'TBM_conv1d_3layer',    # 3层卷积
-        'TBM_conv1d_4layer',    # 4层卷积
-        # 'TBM_conv1d_5layer',    # 5层卷积
-        # 'TBM_conv1d_6layer',    # 6层卷积
-        # 'TBM_conv1d_7layer',    # 7层卷积
-        # 'TBM_conv1d_8layer',    # 8层卷积
-        # 'ResNet32_1D',          # ResNet-32 1D模型
-        # 'LSTM',                 # LSTM模型
-        # 'BiLSTM',               # BiLSTM模型
-        # 'Transformer'           # Transformer模型
-    ]
+    # 定义要测试的奖励倍数列表
+    reward_multipliers = [1]
+    
+    # 定义要测试的折扣因子列表
+    discount_factors = [0.85]
+    
+    # 使用固定的模型变体
+    model_variant = 'TBM_conv1d_4layer'
     
     # 使用绝对路径
-    save_dir = '/workspace/RL/DQNimb/final_4layer_results'
+    save_dir = '/workspace/RL/DQNimb/discount_results'
     
-    # 双重循环：先遍历数据集配置，再遍历模型变体
+    # 创建保存目录（如果不存在）
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # 四重循环：先遍历数据集配置，再遍历奖励倍数，再遍历折扣因子，最后进行多次运行
     for dataset_name, rho in tbm_configs:
-        for model_variant in model_variants:
+        for reward_multiplier in reward_multipliers:
+            for discount_factor in discount_factors:
+                print(f"\n{'='*70}") 
+                print(f"开始处理数据集: {dataset_name}, 不平衡率: {rho}, 模型变体: {model_variant}")
+                print(f"奖励倍数: {reward_multiplier}, 折扣因子: {discount_factor}")
+                print(f"{'='*70}")
                 
-            print(f"\n{'='*70}") 
-            print(f"开始处理数据集: {dataset_name}, 不平衡率: {rho}, 模型变体: {model_variant}")
-            print(f"{'='*70}")
-            
-            # 获取模型配置
-            model_config = get_model_config(dataset_name, model_variant)
-            model_type = model_config['model_type']
-            input_shape = model_config['input_shape']
-            
-            print(f"数据集: {dataset_name}")
-            print(f"选择的模型类型: {model_type}")
-            print(f"输入形状: {input_shape}")
-            
-            # 创建不平衡数据集
-            dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
+                # 获取模型配置
+                model_config = get_model_config(dataset_name, model_variant)
+                model_type = model_config['model_type']
+                input_shape = model_config['input_shape']
                 
-            # 直接获取训练和测试的dataloader
-            train_loader, test_loader = dataset.get_dataloaders()
-            
-            # 创建绝对路径目录（如果不存在）
-            os.makedirs(save_dir, exist_ok=True)
-            
-            if TEST_ONLY:
-                print("测试模式: 加载多个模型并分别评估")
+                print(f"数据集: {dataset_name}")
+                print(f"选择的模型类型: {model_type}")
+                print(f"输入形状: {input_shape}")
+                print(f"奖励倍数: {reward_multiplier}, 实际奖励值: {rho * reward_multiplier}")
+                print(f"折扣因子: {discount_factor}")
                 
-                # 设置与训练时相同的参数
-                num_runs = 10
-                training_ratio = 1  # 使用与训练时相同的ratio
-                
-                # 根据模型类型创建相应的模型
-                if model_type == 'Q_Net_image':
-                    q_net = Q_Net_image(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d':
-                    q_net = TBM_conv1d(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d_1layer':
-                    q_net = TBM_conv1d_1layer(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d_3layer':
-                    q_net = TBM_conv1d_3layer(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d_4layer':
-                    q_net = TBM_conv1d_4layer(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d_5layer':
-                    q_net = TBM_conv1d_5layer(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d_6layer':
-                    q_net = TBM_conv1d_6layer(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d_7layer':
-                    q_net = TBM_conv1d_7layer(input_shape, output_dim=2)
-                elif model_type == 'TBM_conv1d_8layer':
-                    q_net = TBM_conv1d_8layer(input_shape, output_dim=2)
-                elif model_type == 'ResNet32_1D':
-                    q_net = ResNet32_1D(input_shape, output_dim=2)
-                elif model_type == 'LSTM':
-                    q_net = LSTM(input_shape, output_dim=2)
-                elif model_type == 'BiLSTM':
-                    q_net = BiLSTM(input_shape, output_dim=2)
-                elif model_type == 'Transformer':
-                    q_net = Transformer(input_shape, output_dim=2)
-                else:
-                    raise ValueError(f"不支持的模型类型: {model_type}")
-                
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                q_net.to(device)
-                
-                # 循环加载每次训练保存的模型并评估
-                for run in range(1, num_runs + 1):
-                    # 生成模型文件名，与训练时相同的命名方式，包含模型类型
-                    model_filename = f'{dataset_name}_rho{rho}_{model_type}_训练完成比{training_ratio}_第{run}次.pth'
-                    model_path = os.path.join(save_dir, model_filename)
+                try:
+                    # 创建不平衡数据集
+                    dataset = ImbalancedDataset(dataset_name=dataset_name, rho=rho, batch_size=64)
+                        
+                    # 直接获取训练和测试的dataloader
+                    train_loader, test_loader = dataset.get_dataloaders()
                     
-                    if os.path.exists(model_path):
-                        print(f"\n{'='*50}")
-                        print(f"加载并评估第 {run} 个模型: {model_filename}")
-                        print(f"{'='*50}")
+                    if TEST_ONLY:
+                        print("测试模式: 加载多个模型并分别评估")
                         
-                        # 加载模型
-                        q_net.load_state_dict(torch.load(model_path), strict=False)
-                        print(f"成功加载模型: {model_path}")
+                        # 设置与训练时相同的参数
+                        num_runs = 10
+                        training_ratio = 1  # 使用与训练时相同的ratio
                         
-                        # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
-                        evaluate_model(q_net, test_loader, save_dir=save_dir, 
-                                      dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
-                                      dataset_obj=dataset, run_number=run, model_type=model_type)
+                        # 根据模型类型创建相应的模型
+                        if model_type == 'TBM_conv1d_4layer':
+                            q_net = TBM_conv1d_4layer(input_shape, output_dim=2)
+                        else:
+                            raise ValueError(f"不支持的模型类型: {model_type}")
+                        
+                        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                        q_net.to(device)
+                        
+                        # 循环加载每次训练保存的模型并评估
+                        for run in range(1, num_runs + 1):
+                            # 生成模型文件名，包含奖励倍数和折扣因子
+                            model_filename = f'{dataset_name}_rho{rho}_{model_type}_reward{reward_multiplier}_gamma{discount_factor}_训练完成比{training_ratio}_第{run}次.pth'
+                            model_path = os.path.join(save_dir, model_filename)
+                            
+                            if os.path.exists(model_path):
+                                print(f"\n{'='*50}")
+                                print(f"加载并评估第 {run} 个模型: {model_filename}")
+                                print(f"{'='*50}")
+                                
+                                # 加载模型
+                                q_net.load_state_dict(torch.load(model_path), strict=False)
+                                print(f"成功加载模型: {model_path}")
+                                
+                                # 评估模型，传递奖励倍数和折扣因子
+                                evaluate_model(q_net, test_loader, save_dir=save_dir, 
+                                              dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
+                                              dataset_obj=dataset, run_number=run, model_type=model_type,
+                                              reward_multiplier=reward_multiplier, discount_factor=discount_factor)
+                            else:
+                                print(f"警告: 未找到模型文件 {model_path}")
                     else:
-                        print(f"警告: 未找到模型文件 {model_path}")
-                
-                # 计算所有模型的G-mean标准差并更新Excel文件
-                print(f"\n{'='*50}")
-                print("所有模型评估完成，开始计算G-mean标准差...")
-                print(f"{'='*50}")
-                calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho)
-            else:
-                print("训练模式: 将进行模型训练和评估")
+                        print("训练模式: 将进行模型训练和评估")
 
-                # 运行10次训练
-                num_runs = 10
-                print(f"开始进行 {num_runs} 次训练，模型类型: {model_type}")
-                for run in range(1, num_runs + 1):
-                    
-                    print(f"\n{'='*50}")
-                    print(f"开始第 {run} 次训练")
-                    print(f"使用模型类型: {model_type}")
-                    print(f"{'='*50}")
-                    
-                    # 为每次运行设置不同的随机数种子
-                    # 使用数据集名称的哈希值、rho值、模型类型和运行次数来生成唯一种子
-                    seed = hash(f"{dataset_name}_{rho}_{model_type}_{run}") % (2**32)
-                    set_random_seed(seed)
-                    
-                    # 每次创建新的分类器实例，传入模型类型
-                    classifier = MyRL(input_shape, rho=rho, model_type=model_type)
-                    
-                    # 开始训练，直接使用数据集对象而不是dataloader
-                    classifier.train(dataset)
-                    
-                    # 使用MyRL类中的ratio参数
-                    training_ratio = classifier.ratio
-                    
-                    # 生成带数据集名称、不平衡率、模型类型、训练完成比例和序号的模型文件名
-                    model_filename = f'{dataset_name}_rho{rho}_{model_type}_训练完成比{training_ratio}_第{run}次.pth'
-                    numbered_model_path = os.path.join(save_dir, model_filename)
-                    
-                    # 保存模型
-                    torch.save(classifier.q_net.state_dict(), numbered_model_path)
-                    print(f"模型已保存到 {numbered_model_path}")
-                    
-                    # 评估模型，传递数据集名称、训练完成比例、不平衡率和模型类型
-                    evaluate_model(classifier.q_net, test_loader, save_dir=save_dir, 
-                                  dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
-                                  dataset_obj=dataset, run_number=run, model_type=model_type)
-                    
-                    # 绘制并保存损失曲线
-                    loss_filename = f'{dataset_name}_rho{rho}_{model_type}_训练完成比{training_ratio}_第{run}次_loss.png'
-                    loss_path = os.path.join(save_dir, loss_filename)
-                    classifier.plot_loss(loss_path)
-                    
-                    print(f"第 {run} 次训练完成")
+                        # 运行10次训练
+                        num_runs = 10
+                        print(f"开始进行 {num_runs} 次训练，模型类型: {model_type}, 奖励倍数: {reward_multiplier}, 折扣因子: {discount_factor}")
+                        for run in range(1, num_runs + 1):
+                            
+                            print(f"\n{'='*50}")
+                            print(f"开始第 {run} 次训练")
+                            print(f"使用模型类型: {model_type}, 奖励倍数: {reward_multiplier}, 折扣因子: {discount_factor}")
+                            print(f"{'='*50}")
+                            
+                            # 每次创建新的分类器实例，传入模型类型、奖励倍数和折扣因子
+                            classifier = MyRL(input_shape, rho=rho, model_type=model_type, 
+                                             reward_multiplier=reward_multiplier, discount_factor=discount_factor)
+                            
+                            # 开始训练，直接使用数据集对象而不是dataloader
+                            classifier.train(dataset)
+                            
+
+                            # 使用MyRL类中的ratio参数
+                            training_ratio = classifier.ratio
+                            
+                            # 生成带数据集名称、不平衡率、模型类型、奖励倍数、折扣因子、训练完成比例和序号的模型文件名
+                            model_filename = f'{dataset_name}_rho{rho}_{model_type}_reward{reward_multiplier}_gamma{discount_factor}_训练完成比{training_ratio}_第{run}次.pth'
+                            numbered_model_path = os.path.join(save_dir, model_filename)
+                            
+                            # 保存模型
+                            torch.save(classifier.q_net.state_dict(), numbered_model_path)
+                            print(f"模型已保存到 {numbered_model_path}")
+                            
+                            # 评估模型，传递奖励倍数和折扣因子
+                            evaluate_model(classifier.q_net, test_loader, save_dir=save_dir, 
+                                          dataset_name=dataset_name, training_ratio=training_ratio, rho=rho, 
+                                          dataset_obj=dataset, run_number=run, model_type=model_type,
+                                          reward_multiplier=reward_multiplier, discount_factor=discount_factor)
+                            
+
+                            # 绘制并保存损失曲线
+                            loss_filename = f'{dataset_name}_rho{rho}_{model_type}_reward{reward_multiplier}_gamma{discount_factor}_训练完成比{training_ratio}_第{run}次_loss.png'
+                            loss_path = os.path.join(save_dir, loss_filename)
+                            classifier.plot_loss(loss_path)
+                            
+                            print(f"第 {run} 次训练完成")
                 
-                print(f"\n{'='*50}")    
-                print(f"数据集 {dataset_name} 使用模型 {model_type} 的所有训练完成，开始计算G-mean标准差...")
-                print(f"{'='*50}")
-                
-                # 计算G-mean标准差并更新Excel文件
-                calculate_and_update_variance(save_dir, dataset_name, training_ratio, num_runs, rho)
+                except Exception as e:
+                    print(f"处理配置 {dataset_name}, rho={rho}, reward={reward_multiplier}, gamma={discount_factor} 时出错: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    continue  # 继续下一个配置
+
 if __name__ == "__main__":
     main()
 
