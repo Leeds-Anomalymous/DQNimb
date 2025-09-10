@@ -437,10 +437,12 @@ class MyRL():
         """
         plt.figure(figsize=(10, 6))
         plt.plot(self.loss_history)
-        plt.title('Q-Network Training Loss')
-        plt.xlabel('Training Steps')
-        plt.ylabel('Loss')
-        plt.grid(True)
+        #plt.title('Q-Network Training Loss')
+        plt.xlabel('Training Steps', fontsize=18)
+        plt.ylabel('Loss', fontsize=18)
+        plt.xticks(fontsize=18)
+        plt.yticks(fontsize=18)
+        plt.grid(False)
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"损失曲线已保存到 {save_path}")
@@ -609,7 +611,7 @@ def main():
                             classifier = MyRL(input_shape, rho=rho, model_type=model_type, 
                                              reward_multiplier=reward_multiplier, discount_factor=discount_factor)
                             
-                            # 开始训练，直接使用数据集对象而不是dataloader
+                            # 开始训练，直接使用数据集对象而不是dataloader8
                             classifier.train(dataset)
                             
 

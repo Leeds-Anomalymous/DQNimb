@@ -61,10 +61,10 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None, datas
                 yticklabels=['Minority (0)', 'Majority (1)'],
                 annot_kws={'fontsize':24})
     # 放大坐标轴标签字体和刻度字体
-    plt.xlabel('Predicted Label', fontsize=16)
-    plt.ylabel('True Label', fontsize=16)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xlabel('Predicted Label', fontsize=18)
+    plt.ylabel('True Label', fontsize=18)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
     
     # 构建详细的标题
     title_parts = []
