@@ -55,11 +55,16 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None, datas
     """绘制混淆矩阵"""
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(10, 8))
+    # 增大方格内数字字体并保持其它参数
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 xticklabels=['Minority (0)', 'Majority (1)'],
-                yticklabels=['Minority (0)', 'Majority (1)'])
-    plt.xlabel('Predicted Label')
-    plt.ylabel('True Label')
+                yticklabels=['Minority (0)', 'Majority (1)'],
+                annot_kws={'fontsize':24})
+    # 放大坐标轴标签字体和刻度字体
+    plt.xlabel('Predicted Label', fontsize=16)
+    plt.ylabel('True Label', fontsize=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
     
     # 构建详细的标题
     title_parts = []
@@ -89,9 +94,10 @@ def plot_confusion_matrix(y_true, y_pred, save_path=None, model_type=None, datas
         title_parts.extend(sample_info)
     
     # 组合标题，使用换行符分隔
-    full_title = '\n'.join(title_parts)
-    plt.title(full_title, fontsize=8, pad=20)
-    
+    #full_title = '\n'.join(title_parts)
+    # 不显示标题（已移除 plt.title 调用）
+    # plt.title(full_title, fontsize=8, pad=20)
+
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"混淆矩阵已保存到 {save_path}")
