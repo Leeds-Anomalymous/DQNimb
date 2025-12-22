@@ -273,7 +273,7 @@ class TBM_conv1d_4layer(nn.Module):
         
         # Layer 1
         self.conv1 = nn.Conv1d(feature_dim, 32, kernel_size=5, stride=1, padding=2)
-        self.relu1 = nn.ReLU()
+        self.relu1 = nn.ReLU()  
         self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
 
         # Layer 2
@@ -862,7 +862,7 @@ class BiLSTM(nn.Module):
         super(BiLSTM, self).__init__()
         len_window, feature_dim = input_shape
         input_size = feature_dim
-        hidden_size = 64
+        hidden_size = 32
         num_layers = 2
         num_classes = output_dim
         
@@ -914,56 +914,54 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
 
+
 class Transformer(nn.Module):
-    def __init__(self, input_shape, output_dim=2):
-        super(Transformer, self).__init__()
+    def __init__(self, input_shape, output_dim=2, d_model=32, n_heads=2, num_layers=2, dropout=0.1):
+        super().__init__()
         len_window, feature_dim = input_shape
-        input_dim = feature_dim
-        seq_length = len_window
-        num_classes = output_dim
-        d_model = 256
-        nhead = 2
-        num_encoder_layers = 3
-        dim_feedforward = 512
-        dropout = 0.1
-        
-        # 将输入特征映射到模型维度
-        self.embedding = nn.Linear(input_dim, d_model)
-        
-        # 位置编码
-        self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=seq_length)
-        
-        # Transformer编码器层
-        encoder_layers = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, batch_first=True)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
-        
-        # 分类头
-        self.classifier = nn.Linear(d_model, num_classes)
-        
-        self.d_model = d_model
-        self.seq_length = seq_length
-        
+        self.input_proj = nn.Linear(feature_dim, d_model)
+        self.register_buffer("pos_encoding", self._build_positional_encoding(len_window, d_model))
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=n_heads,
+            dim_feedforward=d_model * 4,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.feature_layer = nn.Linear(d_model, 128)
+        self.relu = nn.ReLU()
+        self.classifier = nn.Linear(128, output_dim)
+
+    def _build_positional_encoding(self, length, d_model):
+        position = torch.arange(length, dtype=torch.float32).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(length, d_model, dtype=torch.float32)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        return pe.unsqueeze(0)  # [1, length, d_model]
+
     def forward(self, x):
-        # 处理输入维度: [64, 3, 1, 1024] -> [64, 1024, 3]
+        # 支持输入 [B, C, H, W] 或 [B, C, L] 以及 [B, L, C]
         if len(x.shape) == 4:
-            batch_size, channels, height, width = x.shape
-            x = x.squeeze(2).permute(0, 2, 1)  # [64, 3, 1024] -> [64, 1024, 3]
-        elif len(x.shape) == 3 and x.shape[1] == 3:
-            x = x.permute(0, 2, 1)  # [batch, 3, seq_len] -> [batch, seq_len, 3]
-        
-        # x shape: [batch_size, seq_length, features]
-        # 映射到模型维度
-        x = self.embedding(x)
-        
-        # 添加位置编码
-        x = self.pos_encoder(x)
-        
-        # 通过Transformer编码器
-        x = self.transformer_encoder(x)
-        
-        # 使用序列的平均值进行分类
-        x = x.mean(dim=1)  # [batch_size, d_model]
-        
-        # 分类层
+            b, c, _, w = x.shape
+            x = x.reshape(b, c, w)           # [B, C, L]
+        if len(x.shape) == 3 and x.shape[1] == 3:
+            x = x.permute(0, 2, 1)            # [B, C, L] -> [B, L, C]
+
+        # 线性投影 + 位置编码
+        x = self.input_proj(x)                # [B, L, d_model]
+        x = x + self.pos_encoding[:, : x.size(1), :]
+
+        # 编码器
+        x = self.encoder(x)                   # [B, L, d_model]
+
+        # 取最后一个时间步的表示
+        # x = x.mean(dim=1)                      # [B, d_model]
+        x =x[:,-1,:]
+
+        # 分类头
+        x = self.relu(self.feature_layer(x))
         x = self.classifier(x)
         return x
+# ...existing code...

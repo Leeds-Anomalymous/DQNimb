@@ -303,6 +303,54 @@ class ImbalancedDataset:
             test_set = self._create_dataset_from_arrays(test_data, test_labels)
             
             return train_set, test_set
+        elif self.dataset_name == "TBM_K_M_Noise_crossR":
+            self.positive_classes = [1, 2, 3, 4, 5, 6, 7, 8]
+            self.negative_classes = [0]
+            print("正在加载TBM_K_M_Noise_1R2R训练集...")
+            train_data, train_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_1R2R.h5') #
+            
+            print("正在加载TBM_K_M_Noise_3R测试集...")
+            test_data, test_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_3R.h5')
+            
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            return train_set, test_set
+        elif self.dataset_name == "TBM_K_M_Noise_crossKN":
+            self.positive_classes = [1, 2, 3, 4, 5, 6, 7, 8]
+            self.negative_classes = [0]
+            print("正在加载TBM_K_M_Noise_10KN20KN训练集...")
+            train_data, train_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_10KN20KN.h5') #
+            
+            print("正在加载TBM_K_M_Noise_30KN测试集...")
+            test_data, test_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_30KN.h5')
+            
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            return train_set, test_set
+        elif self.dataset_name == "TBM_K_M_Noise_crossR_reversed":
+            self.positive_classes = [1, 2, 3, 4, 5, 6, 7, 8]
+            self.negative_classes = [0]
+            print("正在加载TBM_K_M_Noise_3R训练集...")
+            train_data, train_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_3R.h5') #
+            
+            print("正在加载TBM_K_M_Noise_12R测试集...")
+            test_data, test_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_1R2R.h5')
+            
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            return train_set, test_set
+        elif self.dataset_name == "TBM_K_M_Noise_crossKN_reversed":
+            self.positive_classes = [1, 2, 3, 4, 5, 6, 7, 8]
+            self.negative_classes = [0]
+            print("正在加载TBM_K_M_Noise_30KN训练集...")
+            train_data, train_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_30KN.h5') #
+            
+            print("正在加载TBM_K_M_Noise_10KN20KN测试集...")
+            test_data, test_labels = self._load_h5_file('/datasets/TBM/train_data/data/train_dataset0.3_1024_512_standard_snr5_prob0.3_amp0.05_10KN20KN.h5')
+            
+            train_set = self._create_dataset_from_arrays(train_data, train_labels)
+            test_set = self._create_dataset_from_arrays(test_data, test_labels)
+            return train_set, test_set
         else:
             raise ValueError(f"Unsupported dataset: {self.dataset_name}")
             

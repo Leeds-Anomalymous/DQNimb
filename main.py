@@ -219,7 +219,7 @@ class MyRL():
 
     def compute_reward(self, action, label):
         """
-        实现论文中的奖励函数 (Section 3.2)
+        实现奖励函数 
         Args:
             action: 预测的类别 (0或1)
             label: 真实的类别 (0表示少数类，1表示多数类)
@@ -238,9 +238,20 @@ class MyRL():
         # 多数类样本 (标签1)
         else:
             if action == label:
-                reward = self.lambda_value  # 正确分类多数类
+                # 方案1: 在lambda_value周围添加高斯噪声
+                noise = np.random.normal(0, 0.01 * self.lambda_value)  # 标准差为lambda_value的10%
+                # reward = self.lambda_value + noise
+                
+                # 或者方案2: 随机从一个范围内取值
+                # reward = np.random.uniform(self.lambda_value * 0.8, self.lambda_value * 1.2)
+                
+                # 或者方案3: 添加均匀分布的噪声
+                # noise = np.random.uniform(-0.05, 0.05)
+                reward = self.lambda_value + noise
             else:
-                reward = -self.lambda_value  # 错误分类多数类
+                # 同样为错误奖励添加随机性
+                noise = np.random.normal(0, 0.1 * self.lambda_value)
+                reward = -self.lambda_value + noise
                 # 注意: 多数类错误不终止episode
         return reward, terminal
 
@@ -483,6 +494,10 @@ def get_model_config(dataset_name, model_variant=None):
         'TBM_K_M_Noise_snr_-5': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
         'TBM_K_M_Noise_snr_-7': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
         'TBM_K_M_Noise_snr_-10': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_crossR': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_crossKN': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_crossR_reversed': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
+        'TBM_K_M_Noise_crossKN_reversed': {'model_type': 'TBM_conv1d', 'input_shape': (1024, 3)},
     }
     
     # 如果指定了模型变体，直接使用
@@ -509,9 +524,11 @@ def main():
     
     # 创建TBM数据集配置列表，每个元素包含数据集名称和对应的rho值
     tbm_configs = [
-        # ('TBM_K_M_Noise', 0.01),
-        ('TBM_K_M_Noise', 0.008),  # 添加新的不平衡率
-        ('TBM_K_M_Noise', 0.005)
+        # ('TBM_K_M_Noise_crossR', 0.01),
+        # ('TBM_K_M_Noise_crossR_reversed', 0.01),
+        # ('TBM_K_M_Noise_crossKN_reversed', 0.01),
+        # ('TBM_K_M_Noise', 0.008),  # 添加新的不平衡率
+        ('TBM_K_M_Noise', 0.01)
     ]
     
     # 定义要测试的奖励倍数列表
@@ -521,10 +538,10 @@ def main():
     discount_factors = [0.1]
     
     # 使用固定的模型变体
-    model_variant = ['TBM_conv1d_1layer', 'TBM_conv1d', 'TBM_conv1d_3layer', 'TBM_conv1d_5layer', 'TBM_conv1d_6layer', 'TBM_conv1d_7layer', 'TBM_conv1d_8layer']
-    
+    # model_variant = ['TBM_conv1d_1layer', 'TBM_conv1d', 'TBM_conv1d_3layer', 'TBM_conv1d_5layer', 'TBM_conv1d_6layer', 'TBM_conv1d_7layer', 'TBM_conv1d_8layer']
+    model_variant = ['Transformer']
     # 使用绝对路径
-    save_dir = '/workspace/RL/DQNimb/layer_compare_results'
+    save_dir = '/workspace/RL/DQNimb/patent'
     
     # 创建保存目录（如果不存在）
     os.makedirs(save_dir, exist_ok=True)
@@ -567,6 +584,8 @@ def main():
                             # 根据模型类型创建相应的模型
                             if model_type == 'TBM_conv1d_4layer':
                                 q_net = TBM_conv1d_4layer(input_shape, output_dim=2)
+                            elif model_type=='Transformer':
+                                q_net=Transformer(input_shape, output_dim=2)
                             else:
                                 raise ValueError(f"不支持的模型类型: {model_type}")
                             
