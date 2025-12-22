@@ -239,7 +239,7 @@ class MyRL():
         else:
             if action == label:
                 # 方案1: 在lambda_value周围添加高斯噪声
-                noise = np.random.normal(0, 0.01 * self.lambda_value)  # 标准差为lambda_value的10%
+                #noise = np.random.normal(0, 0.01 * self.lambda_value)  # 标准差为lambda_value的10%
                 # reward = self.lambda_value + noise
                 
                 # 或者方案2: 随机从一个范围内取值
@@ -247,11 +247,11 @@ class MyRL():
                 
                 # 或者方案3: 添加均匀分布的噪声
                 # noise = np.random.uniform(-0.05, 0.05)
-                reward = self.lambda_value + noise
+                reward = self.lambda_value #+ noise
             else:
                 # 同样为错误奖励添加随机性
-                noise = np.random.normal(0, 0.1 * self.lambda_value)
-                reward = -self.lambda_value + noise
+                # noise = np.random.normal(0, 0.1 * self.lambda_value)
+                reward = -self.lambda_value# + noise
                 # 注意: 多数类错误不终止episode
         return reward, terminal
 
