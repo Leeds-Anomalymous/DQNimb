@@ -72,5 +72,3 @@ pip install torch numpy pandas matplotlib tqdm openpyxl
 - 评估结果：evaluate.py 会将结果写入 save_dir 下的 Excel（evaluation_results.xlsx），`main.py` 包含对最近多次运行 G-mean 标准差的计算与写回逻辑（使用 pandas + openpyxl 可选合并单元格）
 
 ---
-
-如需为某个数据集或模型添加说明或示例命令，可提供数据样本或期望的模型变体，我将生成对应的运行配置示例。
